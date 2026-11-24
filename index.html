@@ -318,6 +318,33 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
 .chatform .btn{min-height:44px;padding:0 16px}
 .chatnote{margin:0;padding:2px 14px 10px;font-size:12px;color:var(--muted)}
 @media(max-width:520px){.chatbox{width:calc(100vw - 24px)}}
+
+.land .deco{display:none}
+.land .facts{margin:-4px 0 0;font:600 15px/1.3 Nunito,sans-serif;color:var(--ink);opacity:.75;animation:landUp .6s ease-out 1.55s both}
+.land .lnk{margin:-6px 0 0;border:0;background:none;color:var(--ink);font:700 16px/1 Nunito,sans-serif;text-decoration:underline;text-underline-offset:4px;min-height:44px;padding:0 12px;cursor:pointer;animation:landUp .6s ease-out 1.7s both}
+.land .lnk:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+.land.leaving .facts,.land.leaving .lnk,.land.zoomout .facts,.land.zoomout .lnk,.land.leaving .deco,.land.zoomout .deco{opacity:0;transition:opacity .25s;animation:none}
+@media(min-width:1100px) and (min-height:560px){
+.land .deco{display:block;position:fixed;inset:0;pointer-events:none;z-index:0;color:var(--sp-leaf);animation:decoIn 1s ease-out 1.2s both}
+.land .di{position:absolute;display:block;opacity:.28}
+.land .di svg{display:block;width:100%;height:100%;overflow:visible}
+.land .d-leaf1{left:7%;top:15%;width:84px;height:84px;transform:rotate(-14deg);animation:dFloat 7s ease-in-out infinite}
+.land .d-solar{left:4%;top:41%;width:170px;height:170px;animation:dFloat 8s ease-in-out 1s infinite}
+.land .d-turb{left:17%;bottom:9%;width:200px;height:200px}
+.land .d-bulb{left:23%;top:16%;width:70px;height:70px;animation:dFloat 6s ease-in-out .5s infinite}
+.land .d-hex{right:21%;top:13%;width:90px;height:90px;animation:dFloat 9s ease-in-out infinite}
+.land .d-serv{right:6%;top:20%;width:130px;height:130px;animation:dFloat 7.5s ease-in-out .8s infinite}
+.land .d-gauge{right:5%;top:50%;width:190px;height:190px}
+.land .d-leaf2{right:18%;bottom:11%;width:96px;height:96px;transform:rotate(18deg);animation:dFloat 8.5s ease-in-out 1.4s infinite}
+.land .spin{transform-box:fill-box;transform-origin:50% 90%;animation:dSpin 14s linear infinite}
+.land .d-turb .spin{transform-origin:50px 42px;transform-box:view-box}
+.land .needle{transform-origin:50px 74px;transform-box:view-box;animation:dNeedle 5s ease-in-out infinite}
+}
+@keyframes decoIn{from{opacity:0}to{opacity:1}}
+@keyframes dFloat{0%,100%{translate:0 0}50%{translate:0 -12px}}
+@keyframes dSpin{to{transform:rotate(360deg)}}
+@keyframes dNeedle{0%,100%{transform:rotate(-25deg)}50%{transform:rotate(30deg)}}
+@media (prefers-reduced-motion:reduce){.land .di,.land .spin,.land .needle,.land .deco,.land .facts,.land .lnk{animation:none!important}}
 </style>
 
 <header class="band"><div class="band-in">
@@ -1068,7 +1095,7 @@ function render(){
 
 function landingHtml(){
   var lg=document.querySelector('.band .logo'),svg=lg?lg.outerHTML.replace('class="logo"','class="logo big"'):'<b>GreenByte</b>';
-  return '<div class="land"><h1 class="sr" id="h" tabindex="-1">GreenByte</h1>'+svg+'<p class="slogan">Build a greener digital city.</p><button class="btn go" data-a="enter">Start</button></div>';
+  return '<div class="land"><div class="deco" aria-hidden="true"><span class="di d-leaf1"><svg viewBox="0 0 100 100"><path d="M14 86C10 46 36 14 88 12c2 46-22 76-62 78M14 86C34 62 52 44 74 28" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="di d-solar"><svg viewBox="0 0 100 100"><polygon points="16,28 84,28 96,62 4,62" fill="currentColor" fill-opacity=".18" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M39 28L36 62M61 28L64 62M10 45H90M50 62V88M30 88H70" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg></span><span class="di d-turb"><svg viewBox="0 0 100 100"><path d="M50 46V96M38 96H62" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><g class="spin"><path d="M50 42V6M50 42L81 60M50 42L19 60" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></g><circle cx="50" cy="42" r="5" fill="currentColor"/></svg></span><span class="di d-bulb"><svg viewBox="0 0 100 100"><path d="M50 10C32 10 22 24 22 38c0 12 6 18 12 26 3 4 4 8 4 12h24c0-4 1-8 4-12 6-8 12-14 12-26 0-14-10-28-28-28zM38 86h24M42 94h16" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="di d-hex"><svg viewBox="0 0 100 100"><g fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="4" stroke-linejoin="round"><polygon points="30,8 50,19 50,42 30,53 10,42 10,19"/><polygon points="70,30 90,41 90,64 70,75 50,64 50,41"/><polygon points="30,52 50,63 50,86 30,97 10,86 10,63" fill-opacity=".3"/></g></svg></span><span class="di d-serv"><svg viewBox="0 0 100 100"><g fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="4"><rect x="16" y="12" width="68" height="22" rx="6"/><rect x="16" y="39" width="68" height="22" rx="6"/><rect x="16" y="66" width="68" height="22" rx="6"/></g><g fill="currentColor"><circle cx="30" cy="23" r="3.5"/><circle cx="30" cy="50" r="3.5"/><circle cx="30" cy="77" r="3.5"/></g><path d="M48 23H72M48 50H72M48 77H72" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg></span><span class="di d-gauge"><svg viewBox="0 0 100 100"><path d="M10 74A40 40 0 0 1 90 74" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-opacity=".35"/><path d="M10 74A40 40 0 0 1 36 36" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round"/><g class="needle"><path d="M50 74L72 42" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></g><circle cx="50" cy="74" r="7" fill="currentColor"/><text x="50" y="96" text-anchor="middle" font-family="Fredoka,Nunito,sans-serif" font-weight="700" font-size="15" fill="currentColor">CO₂</text></svg></span><span class="di d-leaf2"><svg viewBox="0 0 100 100"><path d="M86 86C90 46 64 14 12 12c-2 46 22 76 62 78M86 86C66 62 48 44 26 28" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><h1 class="sr" id="h" tabindex="-1">GreenByte</h1>'+svg+'<p class="slogan">Build a greener digital city.</p><button class="btn go" data-a="enter">Start</button></div>';
 }
 function homeHtml(){
   return '<div class="hero stack"><h1 id="h" tabindex="-1">Build a greener digital city</h1><p>GreenByte is a board game about Green IT and eco-design. Use this companion as a scoreboard, as a card dealer next to the physical board, or to play the whole game on your screen.</p></div>'+
