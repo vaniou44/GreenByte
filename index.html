@@ -297,6 +297,27 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
 @media(max-width:520px){table{font-size:14px}th,td{padding:8px 5px}th{font-size:11px;line-height:1.2;vertical-align:bottom}.wrapx{margin:0 -10px}td:first-child,th:first-child{padding-left:8px}td:last-child,th:last-child{padding-right:8px}.crown{width:1.45em}}
 @media(max-width:520px){th .lg{display:none}}
 @media(max-width:420px){.seg.small{gap:8px}.seg.small label{padding:10px 8px}.seg.small label b{font-size:15px}}
+#chat{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));z-index:40;display:flex;flex-direction:column;align-items:flex-end;gap:10px;max-width:calc(100vw - 24px)}
+#chat[hidden]{display:none}
+.chatfab{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 18px;border:0;border-radius:999px;background:var(--btn);color:var(--btn-ink);font:inherit;font-weight:700;font-size:16px;cursor:pointer;box-shadow:var(--sh-lift)}
+.chatfab:focus-visible,.chatx:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.chatbadge{position:absolute;top:-6px;right:-4px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--red);color:var(--red-ink);font-size:13px;display:inline-flex;align-items:center;justify-content:center}
+.chatbadge[hidden]{display:none}
+.chatbox{order:-1;width:min(360px,calc(100vw - 24px));height:min(440px,calc(100vh - 110px));height:min(440px,calc(100dvh - 110px));display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border:2px solid var(--line);border-radius:16px;box-shadow:var(--sh-lift);overflow:hidden}
+.chatbox[hidden]{display:none}
+.chatbox header{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 16px;background:var(--band);color:var(--band-ink)}
+.chatbox header h3{margin:0;font-size:18px}
+.chatx{width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:inherit;font-size:28px;line-height:1;cursor:pointer}
+.chatlist{flex:1;min-height:0;margin:0;padding:12px;list-style:none;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.cm{align-self:flex-start;max-width:86%;padding:8px 12px;border-radius:14px 14px 14px 4px;background:var(--surface2);display:flex;flex-direction:column;gap:2px;overflow-wrap:anywhere}
+.cm b{font-size:13px}.cm span{font-size:16px;line-height:1.35}
+.cm.mine{align-self:flex-end;border-radius:14px 14px 4px 14px;background:var(--light)}
+.chatempty{color:var(--muted);text-align:center;margin:auto;font-size:15px}
+.chatform{display:flex;gap:8px;padding:10px 12px 4px}
+.chatform input{flex:1;min-width:0;min-height:44px;padding:0 12px;border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+.chatform .btn{min-height:44px;padding:0 16px}
+.chatnote{margin:0;padding:2px 14px 10px;font-size:12px;color:var(--muted)}
+@media(max-width:520px){.chatbox{width:calc(100vw - 24px)}}
 </style>
 
 <header class="band"><div class="band-in">
@@ -1032,6 +1053,7 @@ function render(){
   else if(screen==='game'){h=S.mode==='manual'?manualHtml():autoHtml();}
   else{h=endHtml();}
   app.innerHTML=h;
+  chatSync();
   attach3d();
   attachDice();
   var done=false;
@@ -1781,7 +1803,7 @@ function netCid(){
 }
 function netOpts(){var o={debug:0,config:{iceServers:ICE}},g=window.GB_PEER,k;if(g){for(k in g){o[k]=g[k];}}return o;}
 function randCode(){var a='ABCDEFGHJKLMNPQRSTUVWXYZ',s='',i;for(i=0;i<4;i++){s+=a.charAt(rnd(a.length));}return s;}
-function cleanName(v){return String(v||'').replace(/[<>]/g,'').trim().slice(0,16);}
+function cleanName(v){var n=String(v||'').replace(/[<>]/g,'').trim().slice(0,16);return censor(n).indexOf('*')>=0&&censor(n)!==n?'Player':n;}
 function netErr(e){
   var t=e&&e.type;
   if(t==='peer-unavailable'){return 'Room not found. Check the code, and make sure the host has not left.';}
@@ -1796,7 +1818,7 @@ function netClose(){
   try{NET.pl.forEach(function(p){if(p.conn){p.conn.close();}});}catch(e){}
   try{if(NET.peer){NET.peer.destroy();}}catch(e){}
   try{if(NET.wake){NET.wake.release();}}catch(e){}
-  NET.peer=null;NET.conn=null;NET.pl=[];NET.role='off';NET.code='';NET.lobby=null;NET.lost=false;NET.off=[];NET.wake=null;NET.arm=false;
+  NET.chat=[];CH.unread=0;NET.peer=null;NET.conn=null;NET.pl=[];NET.role='off';NET.code='';NET.lobby=null;NET.lost=false;NET.off=[];NET.wake=null;NET.arm=false;
 }
 function netLeave(){
   try{sessionStorage.removeItem('gb-room');}catch(e){}
@@ -1865,6 +1887,9 @@ function hostMsg(conn,m){
     else{NET.pl.push({cid:cid,name:nm,conn:conn,on:true});}
     render();
     netPush(true);
+    try{conn.send({t:'chathist',list:NET.chat});}catch(e){}
+  }else if(m.t==='say'&&ix>=0){
+    chatHost(ix,m.txt);
   }else if(m.t==='act'&&ix>=0){
     if(!S||!S.online||screen==='lobby'){return;}
     var d={},k;for(k in (m.d||{})){d[k]=String(m.d[k]);}
@@ -1937,6 +1962,8 @@ function guestMsg(m){
   if(!m||typeof m!=='object'){return;}
   if(m.t==='err'){netFail(m.msg||'Could not join.');return;}
   if(m.t==='closed'){try{sessionStorage.removeItem('gb-room');}catch(e){}netClose();F.online=false;S=null;NET.msg='The host closed the room.';screen='online';render();return;}
+  if(m.t==='chat'&&m.m){chatAdd({n:m.m.n|0,name:String(m.m.name||''),txt:String(m.m.txt||''),id:m.m.id});return;}
+  if(m.t==='chathist'&&m.list){NET.chat=m.list.slice(-60).map(function(x){return {n:x.n|0,name:String(x.name||''),txt:String(x.txt||''),id:x.id};});chatDraw();return;}
   NET.busy=false;NET.lost=false;NET.tries=0;
   try{sessionStorage.setItem('gb-room',NET.code);}catch(e){}
   if(m.t==='lobby'){
@@ -1996,6 +2023,100 @@ function lobbyHtml(){
   '<div class="row">'+(host?'<button class="btn big" data-a="net-start" aria-disabled="'+(pl.length<2)+'">Start the game</button>':'')+'<button class="btn sec" data-a="home">Leave the room</button></div>'+(host&&pl.length<2?'<p class="note">You need at least 2 players.</p>':'')+'</div>';
 }
 
+/* chat (online only): host-authoritative, with a word filter */
+var BAD_LONG=['fuck','shit','bitch','bastard','asshole','dickhead','cunt','wanker','whore','slut','faggot','nigger','nigga','retard','motherfuck','bullshit','putain','merde','salope','salaud','connard','connasse','encule','enculer','foutre','bordel','pute','petasse','batard','fdp','ntm','nique','niquer','tarlouze','pedale','trouduc','trouduk','couille','chiasse','branleur','branler','bite','chier','cretin','debile','abruti','pouffiasse','gouine','negre','bougnoule','youpin'];
+var BAD_EXACT=['con','cons','cul','culs','cum','ass','arse','dick','cock','piss','crap','damn','slag','twat','tits','fag','fags','pd','tg','ftg','nts','wtf','stfu','bite','zob','couilles'];
+var BAD_SAFE={'class':1,'classic':1,'bass':1,'pass':1,'mass':1,'glass':1,'grass':1,'assist':1,'assure':1,'assis':1,'scunthorpe':1};
+function normWord(w){
+  var m={'@':'a','4':'a','3':'e','1':'i','!':'i','0':'o','5':'s','$':'s','7':'t','+':'t','8':'b'};
+  var s=String(w).toLowerCase();
+  try{s=s.normalize('NFD').replace(/[̀-ͯ]/g,'');}catch(e){}
+  s=s.replace(/[@4310!5$7+8]/g,function(c){return m[c];}).replace(/[^a-z]/g,'');
+  return s.replace(/(.)\1{2,}/g,'$1$1');
+}
+function badWord(w){
+  var s=normWord(w);if(!s||BAD_SAFE[s]){return false;}
+  var t=s.replace(/(.)\1+/g,'$1'),i;
+  if(BAD_EXACT.indexOf(s)>=0||BAD_EXACT.indexOf(t)>=0){return true;}
+  for(i=0;i<BAD_LONG.length;i++){
+    var b=BAD_LONG[i],bt=b.replace(/(.)\1+/g,'$1');
+    if(b.length>=6){if(s.indexOf(b)>=0||t.indexOf(bt)>=0){return true;}}
+    else if(s===b||t===bt||(b.length>=4&&(s.indexOf(b)===0||s.slice(-b.length)===b)&&s.length<=b.length+2)){return true;}
+  }
+  return false;
+}
+function stars(w){return new Array(w.length+1).join('*');}
+function censor(txt){
+  var out=String(txt||'');
+  /* letters spread out, like "f u c k" or "f.u.c.k" */
+  out=out.replace(/(?:^|[^A-Za-z0-9])((?:[A-Za-z0-9][\s.\-_*]+){2,}[A-Za-z0-9])(?![A-Za-z0-9])/g,function(all,run){
+    return badWord(run.replace(/[^A-Za-z0-9]/g,''))?all.replace(run,stars(run)):all;
+  });
+  /* normal words (letters, digits and common look-alike symbols) */
+  out=out.replace(/[A-Za-z0-9@$!+À-ɏ]+/g,function(w){var tr=(/[!+$]+$/.exec(w)||[''])[0],c=w.slice(0,w.length-tr.length);return c&&badWord(c)?stars(c)+tr:(badWord(w)?stars(w):w);});
+  return out;
+}
+var CH={open:false,unread:0,built:false,ids:0};
+NET.chat=[];
+function chatOn(){return NET.role!=='off'&&(screen==='lobby'||screen==='game'||screen==='end');}
+function chatBuild(){
+  if(CH.built){return;}CH.built=true;
+  var d=document.createElement('div');d.id='chat';d.hidden=true;
+  d.innerHTML='<button type="button" class="chatfab" id="chatfab" aria-expanded="false" aria-controls="chatbox"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="currentColor"/></svg><span>Chat</span><b class="chatbadge" id="chatbadge" hidden>0</b></button>'+
+  '<section class="chatbox" id="chatbox" role="dialog" aria-label="Room chat" hidden><header><h3>Chat</h3><button type="button" class="chatx" id="chatx" aria-label="Close the chat">×</button></header>'+
+  '<ol class="chatlist" id="chatlist" aria-live="polite"></ol>'+
+  '<form class="chatform" id="chatform" autocomplete="off"><input type="text" id="chatin" maxlength="200" placeholder="Write a message" aria-label="Message"><button class="btn" type="submit">Send</button></form>'+
+  '<p class="chatnote">Rude words are hidden. Be kind!</p></section>';
+  document.body.appendChild(d);
+  d.querySelector('#chatfab').addEventListener('click',function(){chatToggle(!CH.open);});
+  d.querySelector('#chatx').addEventListener('click',function(){chatToggle(false);document.getElementById('chatfab').focus();});
+  d.querySelector('#chatform').addEventListener('submit',function(e){e.preventDefault();var i=document.getElementById('chatin');chatSend(i.value);i.value='';i.focus();});
+  d.addEventListener('keydown',function(e){if(e.key==='Escape'&&CH.open){chatToggle(false);document.getElementById('chatfab').focus();}});
+}
+function chatToggle(o){
+  CH.open=o;if(o){CH.unread=0;}
+  document.getElementById('chatbox').hidden=!o;
+  document.getElementById('chatfab').setAttribute('aria-expanded',o?'true':'false');
+  chatDraw();
+  if(o){var i=document.getElementById('chatin');if(i){i.focus({preventScroll:true});}}
+}
+function chatDraw(){
+  var l=document.getElementById('chatlist'),b=document.getElementById('chatbadge');if(!l){return;}
+  b.hidden=!CH.unread||CH.open;b.textContent=CH.unread>9?'9+':CH.unread;
+  if(!CH.open){return;}
+  var me=NET.role==='host'?0:NET.seat;
+  l.innerHTML=NET.chat.length?NET.chat.map(function(m){
+    return '<li class="cm'+(m.n===me?' mine':'')+'"><b style="color:'+(PCOL[m.n]||'inherit')+'">'+esc(m.name)+'</b><span>'+esc(m.txt)+'</span></li>';
+  }).join(''):'<li class="chatempty">No messages yet. Say hello!</li>';
+  l.scrollTop=l.scrollHeight;
+}
+function chatSync(){
+  chatBuild();
+  var on=chatOn(),c=document.getElementById('chat');
+  c.hidden=!on;
+  if(!on){CH.open=false;document.getElementById('chatbox').hidden=true;}
+  chatDraw();
+}
+function chatAdd(m){
+  NET.chat.push(m);if(NET.chat.length>60){NET.chat.shift();}
+  var me=NET.role==='host'?0:NET.seat;
+  if(!CH.open&&m.n!==me){CH.unread++;}
+  chatDraw();
+}
+function chatSend(txt){
+  txt=String(txt||'').replace(/\s+/g,' ').trim().slice(0,200);
+  if(!txt||NET.role==='off'){return;}
+  if(NET.role==='host'){chatHost(0,txt);}
+  else{try{NET.conn.send({t:'say',txt:txt});}catch(e){}}
+}
+function chatHost(seat,txt){
+  var p=NET.pl[seat];if(!p){return;}
+  var now=Date.now();if(p.lastSay&&now-p.lastSay<600){return;}p.lastSay=now;
+  txt=censor(String(txt).replace(/\s+/g,' ').trim().slice(0,200));if(!txt){return;}
+  var m={n:seat,name:p.name,txt:txt,id:++CH.ids};
+  chatAdd(m);
+  NET.pl.forEach(function(q,i){if(i!==seat||true){try{if(q.conn&&q.conn.open&&i!==0){q.conn.send({t:'chat',m:m});}}catch(e){}}});
+}
 /* events */
 var TURNACT={roll:['roll'],answer:['question'],'to-build':['feedback'],pick:['build'],play:['roll','rest','feedback','card','done','build'],cell:['build','dpick'],'end-turn':['rest','feedback','card','done','build']};
 function act(a,d,rs){
