@@ -1754,10 +1754,10 @@ function endHtml(){
   else if(r.none){head='Everybody loses';cls='lose';sub='Nobody reached '+WP()+'% Performance.';}
   else{
     var names=r.winners.map(function(i){return esc(S.players[i].name);}).join(' and ');
-    head=r.winners.length>1?'Shared victory':'Winner: '+names;cls='win';
+    head=(r.winners.length>1?'Shared victory':'Winner: '+names)+' <span aria-hidden="true">👑</span>';cls='win';
     sub=r.winners.length>1?names+' win together.':'Most Green Points among the players who reached '+WP()+'% Performance.';
   }
-  var rows=S.players.map(function(p){return '<tr><td>'+esc(p.name)+'</td><td class="n">'+p.gp+'</td><td class="n">'+p.ec+'</td><td class="n">'+p.perf+'%</td><td>'+(p.perf>=WP()?'Yes':'No')+'</td></tr>';}).join('');
+  var rows=S.players.map(function(p,pi){var w=!r.lost&&!r.none&&r.winners.indexOf(pi)>=0;return '<tr><td>'+esc(p.name)+(w?' <span aria-label="winner" role="img">👑</span>':'')+'</td><td class="n">'+p.gp+'</td><td class="n">'+p.ec+'</td><td class="n">'+p.perf+'%</td><td>'+(p.perf>=WP()?'Yes':'No')+'</td></tr>';}).join('');
   return '<div class="stack"><h2 id="h" tabindex="-1">Game over</h2><div class="banner '+cls+'" role="status"><h3 style="margin-bottom:4px">'+head+'</h3><p>'+sub+'</p></div>'+
     '<div class="panel"><div class="wrapx"><table><thead><tr><th>Player</th><th class="n">Green Points</th><th class="n">Eco-Coins</th><th class="n">Performance</th><th>'+WP()+'% reached</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="note" style="margin-top:10px">Final CO₂: '+S.co2+' of '+S.b.max+'. The most Green Points wins, and Performance breaks a tie.</p></div>'+
     '<div class="row">'+(S.online&&NET.role!=='host'?'<p class="note">Waiting for the host to start a new game…</p>':'<button class="btn big" data-a="again">Play again</button>')+'<button class="btn sec" data-a="home">'+(S.online?'Leave the room':'Home')+'</button></div>'+logHtml()+'</div>';
