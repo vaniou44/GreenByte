@@ -2024,36 +2024,124 @@ function lobbyHtml(){
 }
 
 /* chat (online only): host-authoritative, with a word filter */
-var BAD_LONG=['fuck','shit','bitch','bastard','asshole','dickhead','cunt','wanker','whore','slut','faggot','nigger','nigga','retard','motherfuck','bullshit','putain','merde','salope','salaud','connard','connasse','encule','enculer','foutre','bordel','pute','petasse','batard','fdp','ntm','nique','niquer','tarlouze','pedale','trouduc','trouduk','couille','chiasse','branleur','branler','bite','chier','cretin','debile','abruti','pouffiasse','gouine','negre','bougnoule','youpin'];
-var BAD_EXACT=['con','cons','cul','culs','cum','ass','arse','dick','cock','piss','crap','damn','slag','twat','tits','fag','fags','pd','tg','ftg','nts','wtf','stfu','bite','zob','couilles'];
-var BAD_SAFE={'class':1,'classic':1,'bass':1,'pass':1,'mass':1,'glass':1,'grass':1,'assist':1,'assure':1,'assis':1,'scunthorpe':1};
-function normWord(w){
-  var m={'@':'a','4':'a','3':'e','1':'i','!':'i','0':'o','5':'s','$':'s','7':'t','+':'t','8':'b'};
-  var s=String(w).toLowerCase();
-  try{s=s.normalize('NFD').replace(/[̀-ͯ]/g,'');}catch(e){}
-  s=s.replace(/[@4310!5$7+8]/g,function(c){return m[c];}).replace(/[^a-z]/g,'');
-  return s.replace(/(.)\1{2,}/g,'$1$1');
+/* word filter: many languages, look-alike spellings (leet, v for u, hidden vowels, spaced letters) */
+var W_SUB=('merde biatch fuck fucker fucking motherfuck bitch bastard asshole arsehole dickhead shithead bullshit horseshit wanker whore slut faggot nigger nigga retard jackass dumbass douche bollock cumshot jizz blowjob handjob '+
+'putain enculer encule salope salaud salopard connard connasse conasse petasse pouffiasse pouffe tarlouze tapette trouduc fiotte foutre bordel branleur branleuse branlette bougnoule bamboula youpin negresse gouine pedale chiasse couille bouffonne nique niquer niquez '+
+'pendejo pendeja cabron cabrona gilipollas hijoputa hijueputa mierda culero marica maricon joder jodete jodido chingar chingada chingado mamada zorra cojones capullo imbecil boludo pelotudo pelotuda concha mamon cagada '+
+'caralho foder fodase merda cuzao buceta babaca otario arrombado vagabunda punheta filhodaputa cacete viado '+
+'puttana stronzo stronza cazzo vaffanculo fanculo minchia coglione bastardo zoccola mignotta pompino bocchino rottinculo frocio ricchione culattone '+
+'scheisse scheiss arschloch fotze ficken hurensohn wichser schlampe miststueck kacke schwuchtel spast pimmel titten verpiss drecksau vollidiot '+
+'klootzak kanker tyfus godverdomme godver neuken flikker mongool rotzak kankerhoer '+
+'schaiss schäiss fotzen huerensouhn aarschloch aarsch hoerensouhn '+
+'orospu siktir sikerim yarrak pezevenk amcik ibne kahpe sikik gotveren '+
+'sharmouta charmouta sharmuta kahba qahba nikomak nikmok kosomak manyak manyouk zamel '+
+'blyat blyad suka sukin pizda pizdec khuy ebat yebat yebanyi mudak gandon zalupa pidor pidar pidaras govno shlyukha ublyudok nahuy nahui pohuy ebal '+
+'kurwa chuj pierdol jebac jebany skurwysyn spierdalaj huj kurwy '+
+'muie futut curva cacat '+
+'jaevla fitta horunge knull faen '+
+'malaka malakas poutana pousti arhidi skata vlaka gamoto '+
+'madarchod behenchod chutiya bhosdike bhosdi gandu harami randi bhenchod kutta kamina lavda '+
+'kusottare chikusho chinko manko kisama '+
+'caonima shabi tamade wangbadan nmsl jiba '+
+'sibal ssibal shibal gaesaekki gaesaeki byungshin ssibal '+
+'').split(' ');
+var W_PRE='salop shit cunt kunt puta puto putas putos putada pedo pede nique zebi kusemek cock dick pussy prick twat tits'.split(' ');
+var W_EX=('nutte gueule ntm cipa foda verga con cons conne connes cul culs cum ass arse piss crap damn fag fags pd pde tg ftg fdp hdp nts wtf stfu gtfo fck fuk fvck sht btch bite bites zob couilles '+
+'ptn pute putes '+
+'porra '+'figa fica '+'hure huer hueren kut lul pik eikel hoer slet sik amk zebbi '+'kuk pula pizd mrd chier couillon '+'dme dmm dcm dume '+'jot cacat '+'lund gaand chut').split(' ').filter(function(x){return x!=='lund'&&x!=='jot'&&x!=='ferme'&&x!=='chut';});
+var W_NATIVE=['блять','блядь','бляд','сука','суки','хуй','хуя','хуе','пизд','ебат','ебан','ебал','мудак','пидор','пидар','говно','залуп','шлюх','ублюд','гандон','нахуй','похуй',
+ 'شرموطة','شرموطه','كس امك','كسمك','عرص','منيوك','قحبة','قحبه','زب','نيك','ابن الكلب','ابن الشرموطة',
+ 'σκατα','σκατά','μαλακα','μαλάκα','πουτανα','πουτάνα','αρχιδι','γαμω','γαμώ',
+ '操你妈','草泥马','傻逼','他妈的','妈的','王八蛋','鸡巴','婊子','肏',
+ 'くそ','クソ','ちくしょう','死ね','ばか','バカ','ちんこ','まんこ',
+ '씨발','시발','개새끼','좆','병신','지랄',
+ 'מזדיין','בן זונה','זונה','כוס','שרמוטה',
+ 'चूतिया','मादरचोद','बहनचोद','भोसड','गांडू','हरामी','रंडी','लंड',
+ 'ไอ้ควาย','เหี้ย','ห่า','เย็ด','สัส','ควย'];
+var W_SAFE={bitte:1,pedal:1,pedals:1,putin:1,imbecile:0,class:1,classic:1,bass:1,pass:1,mass:1,glass:1,grass:1,assist:1,assure:1,assis:1,assez:1,scunthorpe:1,bitcoin:1,dickens:1,cocktail:1,cockpit:1,peacock:1,hancock:1,shitake:1,shiitake:1,analyse:1,assassin:1,passion:1,passer:1,compass:1,embassy:1,ambassador:1,cumulus:1,document:1,circumstance:1,cucumber:1,accumulate:1,putt:1,putting:1,computer:1,computing:1,dispute:1,reputation:1,disputer:1,conseil:1,content:1,contact:1,concept:1,concert:1,confirm:1,pass0:1};
+var HOMO={'а':'a','е':'e','о':'o','р':'p','с':'c','у':'y','х':'x','к':'k','і':'i','ѕ':'s','ј':'j','в':'b','н':'h','м':'m','т':'t','ο':'o','α':'a','ε':'e','ι':'i','κ':'k','ν':'v','ρ':'p','τ':'t','υ':'u','χ':'x'};
+function dd(s){return s.replace(/(.)\1+/g,'$1');}
+function sk(s){return dd(s.replace(/ph/g,'f').replace(/[cq]/g,'k').replace(/z/g,'s').replace(/w/g,'u').replace(/y/g,'i'));}
+function norm1(w){
+  var s=String(w).toLowerCase(),o='',i,c;
+  try{s=s.normalize('NFKD').replace(/[̀-ͯ]/g,'');}catch(e){}
+  for(i=0;i<s.length;i++){c=s.charAt(i);o+=HOMO[c]||c;}
+  var m={'@':'a','4':'a','3':'e','€':'e','1':'i','!':'i','|':'i','0':'o','5':'s','$':'s','7':'t','+':'t','8':'b','9':'g','6':'g','¡':'i'};
+  return o.replace(/[@4$€13!|¡05+78 96]/g,function(c){return m[c]||'';}).replace(/[^a-z]/g,'');
+}
+var K_SUB=W_SUB.filter(Boolean).map(function(x){return sk(dd(x));}).filter(function(x){return x.length>=3;}),K_PRE=W_PRE.filter(Boolean).map(function(x){return sk(dd(x));}).filter(function(x){return x.length>=3;}),SET_EX={};
+W_EX.forEach(function(x){SET_EX[dd(x)]=1;});
+function lev1(a,b){
+  if(Math.abs(a.length-b.length)>1){return false;}
+  var i=0,j=0,e=0;
+  while(i<a.length&&j<b.length){
+    if(a.charAt(i)===b.charAt(j)){i++;j++;continue;}
+    if(++e>1){return false;}
+    if(a.length>b.length){i++;}else if(a.length<b.length){j++;}else{i++;j++;}
+  }
+  return e+(a.length-i)+(b.length-j)<=1;
+}
+function hit(v){
+  if(!v){return false;}
+  var t=dd(v);if(W_SAFE[t]===1||W_SAFE[v]===1){return false;}
+  if(SET_EX[t]){return true;}
+  var k=sk(t),i,p;
+  for(i=0;i<K_SUB.length;i++){p=K_SUB[i];
+    if(k.indexOf(p)>=0&&p.length>=3){return true;}
+    if(p.length>=6&&k.length>=p.length&&k.length<=p.length+1&&lev1(k,p)){return true;}
+    if(p.length>=8&&k.length===p.length-1&&lev1(k,p)){return true;}
+  }
+  for(i=0;i<K_PRE.length;i++){p=K_PRE[i];
+    if(k===p||(k.indexOf(p)===0&&k.length<=p.length+2)){return true;}
+    if(p==='shiti'||p==='shit'){if(k.slice(-p.length)===p){return true;}}
+  }
+  return false;
 }
 function badWord(w){
-  var s=normWord(w);if(!s||BAD_SAFE[s]){return false;}
-  var t=s.replace(/(.)\1+/g,'$1'),i;
-  if(BAD_EXACT.indexOf(s)>=0||BAD_EXACT.indexOf(t)>=0){return true;}
-  for(i=0;i<BAD_LONG.length;i++){
-    var b=BAD_LONG[i],bt=b.replace(/(.)\1+/g,'$1');
-    if(b.length>=6){if(s.indexOf(b)>=0||t.indexOf(bt)>=0){return true;}}
-    else if(s===b||t===bt||(b.length>=4&&(s.indexOf(b)===0||s.slice(-b.length)===b)&&s.length<=b.length+2)){return true;}
+  var w2=String(w),a=norm1(w2);if(W_SAFE[a]===1&&!/[*#?]/.test(w2)){return false;}var vs=[norm1(w2.replace(/0/g,'u')),a,a.replace(/v/g,'u'),a.replace(/w/g,'u'),a.replace(/i/g,'l'),a.replace(/v/g,'u').replace(/w/g,'u')],i;
+  if(w2.indexOf('*')>=0||w2.indexOf('#')>=0||w2.indexOf('?')>=0){
+    var base=w2.toLowerCase(),vv='aeiouy'.split('');
+    for(i=0;i<vv.length;i++){var r=norm1(base.replace(/[*#?]/g,vv[i]));if(hit(r)||hit(r.replace(/v/g,'u'))){return true;}}
+    if(hit(norm1(base.replace(/[*#?]/g,'')))){return true;}
   }
+  for(i=0;i<vs.length;i++){if(hit(vs[i])){return true;}}
   return false;
 }
 function stars(w){return new Array(w.length+1).join('*');}
 function censor(txt){
-  var out=String(txt||'');
-  /* letters spread out, like "f u c k" or "f.u.c.k" */
-  out=out.replace(/(?:^|[^A-Za-z0-9])((?:[A-Za-z0-9][\s.\-_*]+){2,}[A-Za-z0-9])(?![A-Za-z0-9])/g,function(all,run){
-    return badWord(run.replace(/[^A-Za-z0-9]/g,''))?all.replace(run,stars(run)):all;
-  });
-  /* normal words (letters, digits and common look-alike symbols) */
-  out=out.replace(/[A-Za-z0-9@$!+À-ɏ]+/g,function(w){var tr=(/[!+$]+$/.exec(w)||[''])[0],c=w.slice(0,w.length-tr.length);return c&&badWord(c)?stars(c)+tr:(badWord(w)?stars(w):w);});
+  var src=String(txt||''),out=src,changed=false;
+  function mark(f){var o2=f(out);if(o2!==out){changed=true;}out=o2;}
+  /* words in other alphabets */
+  mark(function(o){return o.replace(/[^\s]+/g,function(tok){var l=tok.toLowerCase(),j;for(j=0;j<W_NATIVE.length;j++){if(l.indexOf(W_NATIVE[j])>=0){return stars(tok);}}return tok;});});
+  /* letters spread out: "f u c k", "f.u.c.k" */
+  mark(function(o){return o.replace(/(^|[^A-Za-z0-9])((?:[A-Za-z0-9][\s.\-_*]+){2,}[A-Za-z0-9])(?![A-Za-z0-9])/g,function(all,pre,run){
+    return badWord(run.replace(/[^A-Za-z0-9]/g,''))?pre+stars(run):all;});});
+  /* words with dots or dashes inside: "p.u.t.e", "fu-ck" */
+  mark(function(o){return o.replace(/[A-Za-z0-9]+(?:[.\-_][A-Za-z0-9]+)+/g,function(w){return badWord(w.replace(/[.\-_]/g,''))?stars(w):w;});});
+  /* a word cut in pieces by spaces: "pu te", "fu ck" */
+  mark(function(o){var parts=o.split(/(\s+)/),i,j,n=parts.length;
+    for(i=0;i<n;i+=2){
+      if(!/^[A-Za-z0-9@$!+]{1,4}$/.test(parts[i])||badWord(parts[i])){continue;}
+      var j2=i,joined=parts[i],hitEnd=-1;
+      for(j=i+2;j<n&&j<=i+6;j+=2){
+        if(!/^[A-Za-z0-9@$!+]{1,4}$/.test(parts[j])||/^\s*\n/.test(parts[j-1])||badWord(parts[j])){break;}
+        joined+=parts[j];
+        if(joined.length>=4&&badWord(joined)){hitEnd=j;break;}
+      }
+      if(hitEnd>0){for(j=i;j<=hitEnd;j+=2){parts[j]=stars(parts[j]);}i=hitEnd;}
+    }
+    return parts.join('');});
+  /* normal words, with look-alike symbols */
+  mark(function(o){return o.replace(/[A-Za-z0-9@$!+*#?|À-ɏͰ-ϿЀ-ӿ]+/g,function(w){
+    var tr=(/[!?+$#*|]+$/.exec(w)||[''])[0],c=w.slice(0,w.length-tr.length);
+    if(/^\*+$/.test(w)){return w;}
+    return (c&&badWord(c))?stars(c)+tr:(badWord(w)?stars(w):w);});});
+  /* the same word cut by spaces or symbols inside a long word: check the whole message without separators */
+  if(!changed){
+    var flat=norm1(src.replace(/[\s.\-_*]+/g,'')),f2=flat.replace(/v/g,'u'),i;
+    for(i=0;i<K_SUB.length;i++){var p=K_SUB[i];
+      if(p.length>=6){var a=sk(dd(flat)),b=sk(dd(f2));if(a.indexOf(p)>=0||b.indexOf(p)>=0){return stars(src);}}}
+  }
   return out;
 }
 var CH={open:false,unread:0,built:false,ids:0};
