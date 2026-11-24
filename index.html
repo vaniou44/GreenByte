@@ -82,6 +82,7 @@ p{margin:0;text-wrap:pretty}
 .mode:hover{border-color:var(--btn);transform:translateY(-3px);box-shadow:var(--sh-lift)}
 .mode:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 .mode .tag{align-self:flex-start;font-size:12px;font-weight:700;letter-spacing:.1em;padding:5px 10px;border-radius:999px;color:#17301F}
+.mode .tag.c-dark{color:#FFFFFF}
 .fs{margin:0;min-width:0}
 .gauge.dense .gc{font-size:11px;letter-spacing:-0.02em}
 .hexcell.valid:focus-visible polygon{stroke:var(--focus);stroke-width:6}
@@ -216,6 +217,17 @@ svg.city{max-width:820px}
 .logo{height:96px}
 .hero h1{font-size:72px}
 }
+.lab{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:16px}
+.codein{text-transform:uppercase;letter-spacing:.3em;font-weight:800;font-size:22px;text-align:center}
+.onl{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.lobtop{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.codebig{font:700 clamp(48px,12vw,84px)/1 Fredoka,Nunito,sans-serif;letter-spacing:.14em;color:var(--btn)}
+.qrp{display:flex;align-items:center;justify-content:center}
+.qrbox{background:#fff;padding:12px;border-radius:12px;width:min(190px,60vw)}
+.qrbox svg{display:block;width:100%;height:auto}
+.lobl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.lrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:18px}
+.lrow .dot{width:32px;height:32px;font-size:15px}
 #splash{position:fixed;inset:0;z-index:200;background:var(--sp-bg);display:flex;align-items:center;justify-content:center;opacity:0;animation:spIn .22s ease-out forwards}
 #splash.out{animation:spOut .28s ease-in forwards}
 #splash svg{width:min(62vw,420px);height:auto;overflow:visible}
@@ -296,6 +308,8 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
 <div id="live" class="sr" aria-live="polite"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 (function(){
 'use strict';
@@ -409,7 +423,7 @@ function initial(p){return esc((p.name.trim()[0]||'?').toUpperCase());}
 function newGame(){
   var b=BOARDS[F.board],n=F.n,players=[],i;
   for(i=0;i<n;i++){players.push({name:(F.names[i]||'').trim()||'Player '+(i+1),color:PCOL[i],gp:0,ec:0,perf:START_PERF,disc:0,pos:0,hand:[]});}
-  S={mode:F.mode,boardKey:F.board,b:b,length:F.length,co2:b.start,round:1,cur:0,players:players,log:[],lost:false,phase:'roll',msg:'',hist:[],decks:{},cells:[],sel:null,full:false};
+  S={mode:F.mode,boardKey:F.board,b:b,length:F.length,co2:b.start,round:1,cur:0,players:players,log:[],lost:false,phase:'roll',msg:'',hist:[],decks:{},cells:[],sel:null,full:false,online:!!F.online,cardHx:-1};
   if(S.mode==='full'||S.mode==='auto'){
     ['light','medium','dark'].forEach(function(k){S.decks[k]=shuffle(QUESTIONS.filter(function(q){return q.lv===k;}));});
     S.decks.bonus=shuffle(CARDS.filter(function(c){return c.k==='bonus';}));
@@ -425,7 +439,7 @@ function newGame(){
 }
 function draw(k){
   if(!S.decks[k].length){
-    if(LV[k]){S.decks[k]=shuffle(QUESTIONS.filter(function(q){return q.lv===k;}));}
+    if(LV[k]){S.decks[k]=shuffle(QUESTIONS.filter(function(q){return q.lv===k;}));log('Every '+LV[k].label.toLowerCase()+' question has been asked: the deck is shuffled again.');}
     else if(k==='disaster'){S.decks[k]=shuffle(DISASTERS);}
     else{S.decks[k]=shuffle(CARDS.filter(function(c){return c.k===k;}));}
   }
@@ -445,6 +459,8 @@ function recalc(i){
 function cost(p,type){return Math.max(0,INFRA[type].cost-(p.disc||0));}
 
 /* city geometry (odd-r offset, pointy-top) */
+function isMine(){return !S.online||S.cur===NET.seat;}
+function viewCells(){return isMine()?validCells():[];}
 function validCells(){
   var out=[],i=S.cur;
   S.cells.forEach(function(cell,idx){
@@ -465,7 +481,7 @@ function pawnT(i){
 }
 function boardSvg(){
   var g=geo(),W=g.W,H=g.H;
-  var valid=(S.phase==='build'||S.phase==='dpick')&&S.sel?validCells():[];
+  var valid=(S.phase==='build'||S.phase==='dpick')&&S.sel?viewCells():[];
   var where=S.players.map(function(p){return p.name+' on space '+(p.pos+1)+' of '+S.track.length;}).join(', ');
   var s='<svg class="city" viewBox="0 0 '+W+' '+(H+5)+'" role="group" aria-label="Board: a circuit of '+S.track.length+' spaces around the city. '+esc(where)+'.">';
   s+='<rect x="1" y="1" width="'+(W-2)+'" height="'+(H-2)+'" rx="18" fill="var(--surface2)" stroke="var(--edge)" stroke-width="3"/>';
@@ -719,7 +735,7 @@ function v3Sync(){
   });
   if(V3.lc!==S.cur||(S.phase==='moving'&&V3.lp!=='moving')){if(V3.follow){V3.off.x=V3.off.z=0;}}
   V3.lc=S.cur;V3.lp=S.phase;
-  V3.valid=(S.phase==='build'||S.phase==='dpick')&&S.sel?validCells():[];
+  V3.valid=(S.phase==='build'||S.phase==='dpick')&&S.sel?viewCells():[];
   V3.vm=V3.valid.map(function(i){return V3.cellM[i];});
   var vk=V3.valid.join(',')+'|'+S.cur;if(vk!==V3.vk||!V3.hl&&V3.valid.length){V3.vk=vk;v3Highlights();}
   if(!S.dice){V3.dv=null;V3.dmode='off';if(V3.dg){V3.dg.visible=false;}}
@@ -816,7 +832,7 @@ function v3Move(e){
 function v3Up(e){
   var multi=Object.keys(V3.pts).length>1;delete V3.pts[e.pointerId];
   var d=V3.drag;V3.drag=null;if(multi){return;}V3.cv.style.cursor='grab';
-  if(d&&d.m<=6&&V3.vm.length){var i=v3Pick(e);if(i>=0){placeCell(i);}}
+  if(d&&d.m<=6&&V3.vm.length){var i=v3Pick(e);if(i>=0){act('cell',{i:String(i)});}}
 }
 function attach3d(){
   var host=document.getElementById('b3d');
@@ -827,7 +843,7 @@ function attach3d(){
 }
 function boardView(){
   if(V3.on&&v3Ok()){
-    var valid=(S.phase==='build'||S.phase==='dpick')&&S.sel?validCells():[];
+    var valid=(S.phase==='build'||S.phase==='dpick')&&S.sel?viewCells():[];
     var where=S.players.map(function(p){return p.name+' on space '+(p.pos+1)+' of '+S.track.length;}).join(', ');
     return '<div class="b3d" id="b3d" role="img" aria-label="3D board: a circuit of '+S.track.length+' spaces around the city. '+esc(where)+'. Drag to turn the board, use the mouse wheel or pinch to zoom."></div>'+valid.map(function(i){return '<button class="sr" data-a="cell" data-i="'+i+'">Space '+(i+1)+'</button>';}).join('');
   }
@@ -946,13 +962,13 @@ function gaugeHtml(){
 function pbarHtml(v){return '<div class="pbar" role="img" aria-label="Performance '+v+'%, '+WIN_PERF+'% needed to win"><i style="width:'+v+'%"></i><b class="tick" style="left:'+WIN_PERF+'%"></b></div>';}
 function statusHtml(extra){
   var b=S.b,rl=S.length==='express'?'Round '+S.round+' of '+MAX_ROUNDS:'Round '+S.round;
-  return '<section class="panel status" aria-label="Game status"><div class="status-head"><b>'+rl+'</b><span class="note">'+b.label+' board · '+(S.length==='express'?'Express':'Normal')+' · '+(S.mode==='full'?'Full game':S.mode==='auto'?'Automatic':'Manual')+'</span></div>'+
-    '<div><div class="status-head" style="margin-bottom:8px"><span><b>CO₂ '+S.co2+'</b> <span class="note">of '+b.max+'</span></span><span class="note">Red zone from '+b.red+': everybody loses</span></div>'+gaugeHtml()+'</div>'+(extra||'')+'</section>';
+  return '<section class="panel status" aria-label="Game status"><div class="status-head"><b>'+rl+'</b><span class="note">'+b.label+' board · '+(S.length==='express'?'Express':'Normal')+' · '+(S.online?'Online · room '+esc(NET.code):S.mode==='full'?'Full game':S.mode==='auto'?'Automatic':'Manual')+'</span></div>'+
+    '<div><div class="status-head" style="margin-bottom:8px"><span><b>CO₂ '+S.co2+'</b> <span class="note">of '+b.max+'</span></span><span class="note">Red zone from '+b.red+': everybody loses</span></div>'+gaugeHtml()+'</div>'+(S.online&&NET.lost?'<div class="banner lose" role="alert">Connection lost. Reconnecting…</div>':'')+(extra||'')+'</section>';
 }
 function stripHtml(){
   return '<div class="pstrip">'+S.players.map(function(p,i){
     var now=S.mode!=='manual'&&i===S.cur&&S.phase!=='round';
-    return '<div class="pcard'+(now?' now':'')+'"><div class="pname"><span class="dot" style="background:'+p.color+'" aria-hidden="true">'+initial(p)+'</span><span>'+esc(p.name)+'</span>'+(now?'<span class="chip c-light">Your turn</span>':'')+'</div>'+
+    return '<div class="pcard'+(now?' now':'')+'"><div class="pname"><span class="dot" style="background:'+p.color+'" aria-hidden="true">'+initial(p)+'</span><span>'+esc(p.name)+'</span>'+(now?'<span class="chip c-light">'+(S.online&&i!==NET.seat?'Playing now':'Your turn')+'</span>':'')+(S.online&&i===NET.seat?'<span class="chip c-bonus">You</span>':'')+(S.online&&NET.off[i]?'<span class="chip">offline</span>':'')+'</div>'+
       '<div class="stats"><span>Green Points <b>'+p.gp+'</b></span><span>Eco-Coins <b>'+p.ec+'</b></span></div>'+
       '<div class="note">Performance <b>'+p.perf+'%</b>'+(p.perf>=WIN_PERF?' · goal reached':'')+'</div>'+pbarHtml(p.perf)+(p.hand&&p.hand.length?'<div class="note">Saved cards: <b>'+p.hand.length+'</b></div>':'')+(S.mode==='auto'?infraLine(i):'')+'</div>';
   }).join('')+'</div>';
@@ -990,7 +1006,7 @@ function finish(){S.res=result();splash(function(){screen='end';render();});}
 /* render */
 function topButtons(){
   var h='';
-  if(screen!=='home'&&screen!=='landing'){h='<button class="btn sec sm" data-a="home">Home</button>';}
+  if(screen!=='home'&&screen!=='landing'){h='<button class="btn sec sm" data-a="home">'+(NET.role!=='off'?(NET.arm?'Click again to leave':'Leave'):'Home')+'</button>';}
   document.getElementById('topbtns').innerHTML=h;
 }
 function keyOf(el){var d=el.dataset||{};return [d.a,d.i,d.v,d.c,d.r,d.lv,d.idx,d.t,d.m,d.d].join('|');}
@@ -1004,6 +1020,8 @@ function render(){
   else if(screen==='home'){h=homeHtml();}
   else if(screen==='rules'){h=rulesHtml();}
   else if(screen==='setup'){h=setupHtml();}
+  else if(screen==='online'){h=onlineHtml();}
+  else if(screen==='lobby'){h=lobbyHtml();}
   else if(screen==='game'){h=S.mode==='manual'?manualHtml():autoHtml();}
   else{h=endHtml();}
   app.innerHTML=h;
@@ -1016,6 +1034,7 @@ function render(){
     for(var i=0;i<all.length;i++){if(keyOf(all[i])===key){all[i].focus({preventScroll:true});done=true;break;}}
   }
   if(!done){var hd=document.getElementById('h');if(hd){hd.focus({preventScroll:true});}}
+  if(NET.role==='host'){netSoon();}
 }
 
 function landingHtml(){
@@ -1028,6 +1047,7 @@ function homeHtml(){
   '<button class="mode" data-a="mode" data-m="manual"><span class="tag c-bonus">MANUAL MODE</span><h2>Play with the board</h2><p class="muted">You use the physical board and cards. The app is your scoreboard: you enter Green Points, Eco-Coins, Performance and the CO₂ gauge.</p></button>'+
   '<button class="mode" data-a="mode" data-m="auto"><span class="tag c-medium">AUTOMATIC MODE</span><h2>Board + app</h2><p class="muted">You play on the physical board. The app holds all the decks (questions, bonus, malus, disasters) and gives out points and Eco-Coins for you.</p></button>'+
   '<button class="mode" data-a="mode" data-m="full"><span class="tag c-light">FULL GAME</span><h2>Play on the app</h2><p class="muted">The whole game is on your screen: board, pawns, dice, questions, building and disasters. Choose the number of players and start.</p></button>'+
+  '<button class="mode" data-a="mode" data-m="online"><span class="tag c-dark">ONLINE</span><h2>Play together online</h2><p class="muted">Create a room and share its code. Each player joins from their own phone or computer, and everybody sees the same game.</p></button>'+
   '</div>'+
   '<div class="rulesbox"><h2>Rules</h2><p class="muted">New to GreenByte? Read the short version first.</p><div class="rulesbtns"><button class="rbtn" data-a="rules" data-t="quick"><b>Quick rules</b><span>4 pages, 3 minutes</span></button><button class="rbtn" data-a="rules" data-t="full"><b>Full rules</b><span>The complete rulebook</span></button></div></div>';
 }
@@ -1103,8 +1123,10 @@ function mut(fn){S.msg='';snap();fn();if(S.co2>=S.b.red){S.lost=true;}render();}
 
 /* automatic mode */
 function autoHtml(){
-  var p=cur(),ph=S.phase,body='';
+  var p=cur(),ph=S.phase,body='',mine=isMine();
+  function C(h){return mine?h:'';}
   var who='<span class="dot" style="background:'+p.color+'" aria-hidden="true">'+initial(p)+'</span> '+esc(p.name);
+  if(S.online&&NET.role==='host'&&NET.off[S.cur]&&ph!=='round'){body+='<div class="banner lose" role="status">'+esc(p.name)+' is offline. <span class="row" style="margin-top:8px"><button class="btn sm" data-a="skip">Skip '+esc(p.name)+'\'s turn</button></span></div>';}
   if(S.msg&&ph!=='build'){body+='<p class="note" role="status">'+S.msg+'</p>';}
   if(ph==='roll'&&S.mode==='auto'){
     var tl=[['light','Light green','1 point'],['medium','Medium green','2 points'],['dark','Dark green','3 points'],['bonus','Bonus','draws a bonus card'],['malus','Malus','draws a malus card']];
@@ -1112,29 +1134,31 @@ function autoHtml(){
     
     body+='<h3>'+who+', your turn</h3><p class="muted">Roll '+(S.length==='express'?'your two dice':'the die')+' and move your pawn on the board. Then tell the app which tile you landed on.</p><div class="infra">'+tl.map(function(t){return '<button class="inf" data-a="tile" data-t="'+t[0]+'"><b>'+t[1]+'</b><small>'+t[2]+'</small></button>';}).join('')+'</div>';
   }else if(ph==='roll'){
-    body+='<h3>'+who+', roll the dice</h3><p class="muted">'+(S.length==='express'?'Express mode: two dice.':'One die.')+' You land on a tile and resolve it.</p><div class="row"><button class="btn big" data-a="roll">Roll the dice</button></div>'+diceStyleHtml();
+    body+=mine?'<h3>'+who+', roll the dice</h3><p class="muted">'+(S.length==='express'?'Express mode: two dice.':'One die.')+' You land on a tile and resolve it.</p><div class="row"><button class="btn big" data-a="roll">Roll the dice</button></div>'+diceStyleHtml():'<h3>'+who+' is about to roll</h3><p class="muted">Waiting for '+esc(p.name)+'…</p>';
   }else if(ph==='moving'){
     body+='<div class="row">'+cubeSet(S.dice,true)+'</div><h3>'+who+' moves '+S.total+' space'+(S.total>1?'s':'')+'</h3><p class="muted" id="moving">Rolling…</p>';
   }else if(ph==='rest'){
-    body+=diceHtml()+'<h3>'+who+' is back on START</h3><p class="muted">Nothing happens on this space.</p><div class="row"><button class="btn" data-a="end-turn">End turn</button></div>';
+    body+=diceHtml()+'<h3>'+who+' is back on START</h3><p class="muted">Nothing happens on this space.</p>'+C('<div class="row"><button class="btn" data-a="end-turn">End turn</button></div>')+'';
   }else if(ph==='dpick'){
     var dk=S.card;
-    body+=diceHtml()+'<span class="chip c-disaster">DISASTER TILE</span><div class="card disaster"><h3>'+esc(dk.t)+'</h3><p>'+esc(dk.x)+'</p><p>Type of infrastructure ruined: <b>'+dk.ty+'</b></p></div><p class="note" role="status">You have several. Choose which one is ruined by selecting it on the map.</p>';
+    body+=diceHtml()+'<span class="chip c-disaster">DISASTER TILE</span><div class="card disaster"><h3>'+esc(dk.t)+'</h3><p>'+esc(dk.x)+'</p><p>Type of infrastructure ruined: <b>'+dk.ty+'</b></p></div>'+(mine?'<p class="note" role="status">You have several. Choose which one is ruined by selecting it on the map.</p>':'<p class="note" role="status">'+esc(p.name)+' is choosing which infrastructure is ruined.</p>');
   }else if(ph==='question'){
     var q=S.q;
-    body+=diceHtml()+'<div class="row"><span class="chip '+LV[S.tile].cls+'">'+LV[S.tile].label.toUpperCase()+' · '+LV[S.tile].pts+' PT'+(LV[S.tile].pts>1?'S':'')+'</span></div><h3>'+esc(q.q)+'</h3><div class="opts">'+q.o2.map(function(o,i){return '<button class="opt" data-a="answer" data-idx="'+i+'">'+esc(o)+'</button>';}).join('')+'</div>';
+    body+=diceHtml()+'<div class="row"><span class="chip '+LV[S.tile].cls+'">'+LV[S.tile].label.toUpperCase()+' · '+LV[S.tile].pts+' PT'+(LV[S.tile].pts>1?'S':'')+'</span></div><h3>'+esc(q.q)+'</h3><div class="opts">'+q.o2.map(function(o,i){return mine?'<button class="opt" data-a="answer" data-idx="'+i+'">'+esc(o)+'</button>':'<div class="opt">'+esc(o)+'</div>';}).join('')+'</div>'+(mine?'':'<p class="note" role="status">'+esc(p.name)+' is answering. Think about it too, you will see the answer next.</p>');
   }else if(ph==='feedback'){
     var q2=S.q,a=S.ans;
     body+='<div class="row"><span class="chip '+LV[S.tile].cls+'">'+LV[S.tile].label.toUpperCase()+'</span></div><h3>'+esc(q2.q)+'</h3><div class="opts">'+q2.o2.map(function(o,i){return '<div class="opt'+(i===q2.ai?' right':(i===a.idx?' wrong':''))+'">'+esc(o)+(i===q2.ai?' <b>(correct)</b>':'')+'</div>';}).join('')+'</div>'+
-      '<div class="banner '+(a.ok?'win':'lose')+'" role="status"><b>'+(a.ok?'Right answer. +'+LV[S.tile].pts+' Green Points and +'+LV[S.tile].pts+' Eco-Coins.':'Wrong answer. No points, and CO₂ +1.')+'</b><br>'+esc(q2.why)+'</div>'+
-      '<div class="row">'+(a.ok?'<button class="btn" data-a="to-build">Build or repair</button><button class="btn sec" data-a="end-turn">End turn</button>':'<button class="btn" data-a="end-turn">End turn</button>')+'</div>';
+      '<div class="banner '+(a.ok?'win':'lose')+'" role="status"><b>'+(mine?'':esc(p.name)+': ')+(a.ok?'Right answer. +'+LV[S.tile].pts+' Green Points and +'+LV[S.tile].pts+' Eco-Coins.':'Wrong answer. No points, and CO₂ +1.')+'</b><br>'+esc(q2.why)+'</div>'+
+      C('<div class="row">'+(a.ok?'<button class="btn" data-a="to-build">Build or repair</button><button class="btn sec" data-a="end-turn">End turn</button>':'<button class="btn" data-a="end-turn">End turn</button>')+'</div>')+(mine?'':'<p class="note" role="status">Waiting for '+esc(p.name)+' to continue…</p>');
   }else if(ph==='card'){
     var c=S.card;
     if(c.kk==='disaster'){
-      body+=diceHtml()+'<span class="chip c-disaster">DISASTER TILE</span><div class="card disaster"><h3>'+esc(c.t)+'</h3><p>'+esc(c.x)+'</p><p>Type of infrastructure ruined: <b>'+c.ty+'</b></p><p><b>'+S.cardFx+'</b></p></div><div class="row"><button class="btn" data-a="end-turn">End turn</button></div>';
+      body+=diceHtml()+'<span class="chip c-disaster">DISASTER TILE</span><div class="card disaster"><h3>'+esc(c.t)+'</h3><p>'+esc(c.x)+'</p><p>Type of infrastructure ruined: <b>'+c.ty+'</b></p><p><b>'+S.cardFx+'</b></p></div>'+C('<div class="row"><button class="btn" data-a="end-turn">End turn</button></div>')+'';
     }else{
-      body+=diceHtml()+'<span class="chip c-'+c.k+'">'+(c.k==='bonus'?'BONUS TILE':'MALUS TILE')+'</span><div class="card '+c.k+'"><h3>'+esc(c.t)+'</h3><p>'+esc(c.x)+'</p><p><b>'+S.cardFx+'</b></p></div><div class="row"><button class="btn" data-a="end-turn">End turn</button></div>';
+      body+=diceHtml()+'<span class="chip c-'+c.k+'">'+(c.k==='bonus'?'BONUS TILE':'MALUS TILE')+'</span><div class="card '+c.k+'"><h3>'+esc(c.t)+'</h3><p>'+esc(c.x)+'</p><p><b>'+S.cardFx+'</b></p></div>'+C('<div class="row"><button class="btn" data-a="end-turn">End turn</button></div>')+'';
     }
+  }else if(ph==='build'&&!mine){
+    body+='<h3>'+who+' is building…</h3><p class="muted">Choosing what to build or repair.</p>';
   }else if(ph==='build'&&S.mode==='auto'){
     body+='<h3>Build or repair</h3><p class="muted">You have <b>'+p.ec+' Eco-Coins</b>.'+(p.disc?' Team training: your next build costs '+p.disc+' less.':'')+' Put the tile on an empty city space that touches your Base or one of your own infrastructures.</p>';
     if(S.msg){body+='<div class="banner lose" role="alert">'+S.msg+'</div>';}
@@ -1153,23 +1177,23 @@ function autoHtml(){
     body+='<div class="row">'+(hasRuin?'<button class="inf'+(S.sel==='repair'?' sel':'')+'" style="flex:1;min-width:220px" data-a="pick" data-t="repair"><b>Repair a ruined infrastructure</b><small>Free · its effects count again</small></button>':'')+'<button class="btn sec" data-a="end-turn">Skip building</button></div>';
     if(S.sel){body+='<p class="note" role="status">'+(S.sel==='repair'?'Choose a ruined infrastructure on the map.':'Choose a highlighted space on the map for the '+INFRA[S.sel].name.toLowerCase()+'.')+'</p>';}
   }else if(ph==='done'){
-    body+='<h3>'+who+'</h3><div class="banner win" role="status">'+S.done+'</div><div class="row"><button class="btn" data-a="end-turn">End turn</button></div>';
+    body+='<h3>'+who+'</h3><div class="banner win" role="status">'+S.done+'</div>'+C('<div class="row"><button class="btn" data-a="end-turn">End turn</button></div>')+'';
   }else if(ph==='round'){
     body+='<h3>End of round '+S.round+'</h3><ul class="log">'+S.events.map(function(e){return '<li>'+e+'</li>';}).join('')+'</ul><div class="row"><button class="btn" data-a="next-round">'+(S.lost?'See results':(S.length==='express'&&S.round>=MAX_ROUNDS?'See results':'Start round '+(S.round+1)))+'</button></div>';
   }
   if(S.lost&&ph!=='round'){body='<div class="banner lose" role="alert"><b>The CO₂ gauge reached the red zone.</b> The game stops now and everybody loses.</div><div class="row"><button class="btn big" data-a="end-turn">See results</button></div>';}
   else if(S.full&&ph!=='round'){body='<div class="banner win" role="status"><b>The city is full.</b> The game ends now.</div><div class="row"><button class="btn big" data-a="end-turn">See results</button></div>';}
-  else if(ph!=='moving'&&ph!=='round'&&ph!=='dpick'){body=handHtml(p)+body;}
+  else if(ph!=='moving'&&ph!=='round'&&ph!=='dpick'&&mine){body=handHtml(p)+body;}
   var mapPanel=S.mode==='auto'?'':'<section class="panel" aria-label="Board"><div class="bhead"><h3>The board'+(S.length==='normal'?' <span class="note">· city '+S.cells.filter(function(x){return x.owner!==null;}).length+' of '+S.cells.length+' spaces built</span>':'')+'</h3>'+viewCtl()+'</div><div id="board">'+boardView()+'</div>'+legendHtml()+'</section>';
   if(S.mode==='auto'){mapPanel='';}
   return '<div class="stack"><h2 id="h" tabindex="-1" class="sr">Game</h2>'+statusHtml()+stripHtml()+'<div class="turnlay"'+(S.mode==='auto'?' style="grid-template-columns:minmax(0,1fr)"':'')+'><section class="panel stack" style="gap:14px" aria-label="Your turn">'+body+'</section>'+mapPanel+'</div>'+logHtml()+'</div>';
 }
 function handHtml(p){
-  var shown=p.hand.filter(function(c){return !(S.phase==='card'&&c===S.card);});
+  var shown=p.hand.filter(function(c){return !(S.phase==='card'&&S.cardHx>=0&&p.hand.indexOf(c)===S.cardHx);});
   if(!shown.length){return '';}
   return '<div class="saved"><h3>Saved cards</h3>'+p.hand.map(function(c,ix){
-    if(S.phase==='card'&&c===S.card){return '';}
-    var btns=c.tgt==='self'?'<button class="btn sm" data-a="play" data-idx="'+ix+'" data-i="'+S.cur+'">Play it</button>':S.players.map(function(q,qi){return qi===S.cur?'':'<button class="btn sm" data-a="play" data-idx="'+ix+'" data-i="'+qi+'">Play on '+esc(q.name)+'</button>';}).join('');
+    if(S.phase==='card'&&S.cardHx===ix){return '';}
+    var btns=!isMine()?'':c.tgt==='self'?'<button class="btn sm" data-a="play" data-idx="'+ix+'" data-i="'+S.cur+'">Play it</button>':S.players.map(function(q,qi){return qi===S.cur?'':'<button class="btn sm" data-a="play" data-idx="'+ix+'" data-i="'+qi+'">Play on '+esc(q.name)+'</button>';}).join('');
     return '<div class="card '+c.k+'"><h3>'+esc(c.t)+'</h3><p>'+esc(c.x)+'</p><div class="row">'+btns+'</div></div>';
   }).join('')+'</div>';
 }
@@ -1606,13 +1630,13 @@ function land(){
   if(t==='start'){S.phase='rest';log(esc(p.name)+(d?' rolled '+d.join(' + ')+' and':'')+' is back on START.');render();say('Back on START');return;}
   if(LV[t]){
     var q=draw(t),opts=shuffle(q.o.map(function(o,ix){return {o:o,ok:ix===0};}));
-    S.q={q:q.q,why:q.why,o2:opts.map(function(x){return x.o;}),ai:opts.findIndex(function(x){return x.ok;})};
+    S.q={id:QUESTIONS.indexOf(q),q:q.q,why:q.why,o2:opts.map(function(x){return x.o;}),ai:opts.findIndex(function(x){return x.ok;})};
     S.phase='question';
     log(esc(p.name)+(d?' rolled '+d.join(' + ')+' and':'')+' landed on a '+LV[t].label.toLowerCase()+' tile.');
   }else if(t==='disaster'){
     var dc=draw('disaster'),cand=[],tn=INFRA[dc.type].name.toLowerCase();
     S.cells.forEach(function(c,ix){if(c.owner===S.cur&&c.kind===dc.type&&!c.ruined){cand.push(ix);}});
-    S.card={kk:'disaster',t:dc.t,x:dc.x,ty:INFRA[dc.type].name};S.dtype=dc.type;
+    S.cardHx=-1;S.card={kk:'disaster',t:dc.t,x:dc.x,ty:INFRA[dc.type].name};S.dtype=dc.type;
     if(!cand.length){addCo2(1);S.cardFx='You have no '+tn+' to ruin, so nothing is ruined. CO₂ +1.';S.phase='card';}
     else if(cand.length===1||S.mode==='auto'){S.cardFx=ruinCell(cand[0]);S.phase='card';}
     else{S.cardFx='';S.sel='ruin';S.phase='dpick';}
@@ -1620,7 +1644,8 @@ function land(){
   }else{
     var cd=draw(t);
     S.card=cd;S.cardFx=fx(cd).replace(/^./,function(m){return m.toUpperCase();})+'.';
-    if(cd.save){p.hand.push(cd);S.cardFx='Saved. You can play it later, during your own turn.';}
+    S.cardHx=-1;
+    if(cd.save){p.hand.push(cd);S.cardHx=p.hand.length-1;S.cardFx='Saved. You can play it later, during your own turn.';}
     else{
       if(cd.ec){p.ec=Math.max(0,p.ec+cd.ec);}
       if(cd.co2){addCo2(cd.co2);}
@@ -1640,10 +1665,11 @@ function playCard(ix,t){
   log(S.msg);render();say(S.msg);
 }
 function doAnswer(idx){
+  if(S.phase!=='question'||!S.q){return;}
   var p=cur(),ok=idx===S.q.ai,pts=LV[S.tile].pts;
   S.ans={idx:idx,ok:ok};
   if(ok){p.gp+=pts;p.ec+=pts;log(esc(p.name)+' answered right: +'+pts+' Green Points and Eco-Coins.');}
-  else{addCo2(1);log(esc(p.name)+' answered wrong: CO₂ +1.');}
+  else{addCo2(1);log(esc(p.name)+' answered wrong: CO₂ +1.');var src=QUESTIONS[S.q.id],dk=S.decks[S.tile];if(src&&dk){dk.splice(rnd(dk.length),0,src);}}
   S.phase='feedback';say(ok?'Right answer':'Wrong answer');
 }
 function endTurn(){
@@ -1732,19 +1758,264 @@ function endHtml(){
   var rows=S.players.map(function(p){return '<tr><td>'+esc(p.name)+'</td><td class="n">'+p.gp+'</td><td class="n">'+p.ec+'</td><td class="n">'+p.perf+'%</td><td>'+(p.perf>=WIN_PERF?'Yes':'No')+'</td></tr>';}).join('');
   return '<div class="stack"><h2 id="h" tabindex="-1">Game over</h2><div class="banner '+cls+'" role="status"><h3 style="margin-bottom:4px">'+head+'</h3><p>'+sub+'</p></div>'+
     '<div class="panel"><div class="wrapx"><table><thead><tr><th>Player</th><th class="n">Green Points</th><th class="n">Eco-Coins</th><th class="n">Performance</th><th>'+WIN_PERF+'% reached</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="note" style="margin-top:10px">Final CO₂: '+S.co2+' of '+S.b.max+'. The most Green Points wins, and Performance breaks a tie.</p></div>'+
-    '<div class="row"><button class="btn big" data-a="again">Play again</button><button class="btn sec" data-a="home">Home</button></div>'+logHtml()+'</div>';
+    '<div class="row">'+(S.online&&NET.role!=='host'?'<p class="note">Waiting for the host to start a new game…</p>':'<button class="btn big" data-a="again">Play again</button>')+'<button class="btn sec" data-a="home">'+(S.online?'Leave the room':'Home')+'</button></div>'+logHtml()+'</div>';
+}
+
+/* online play: host-authoritative rooms over WebRTC (PeerJS) */
+var ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turns:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
+var NET={role:'off',peer:null,conn:null,pl:[],code:'',seat:0,lobby:null,msg:'',busy:false,form:{name:'',code:''},seq:0,timer:null,wake:null,arm:false,lost:false,off:[],copied:false,sw:false,want:null,retry:null,joinLink:false};
+var FWD={roll:1,answer:1,'to-build':1,pick:1,play:1,cell:1,'end-turn':1,'next-round':1};
+try{NET.form.name=localStorage.getItem('gb-name')||'';}catch(e){}
+(function(){var m=/[?&]room=([A-Za-z]{4})/.exec(location.search||'');if(m){NET.form.code=m[1].toUpperCase();NET.joinLink=true;return;}try{var r=sessionStorage.getItem('gb-room');if(r){NET.form.code=r;NET.joinLink=true;}}catch(e){}})();
+function netCid(){
+  try{var v=sessionStorage.getItem('gb-cid');if(!v){v=Math.random().toString(36).slice(2,10);sessionStorage.setItem('gb-cid',v);}return v;}
+  catch(e){return NET.cid||(NET.cid=Math.random().toString(36).slice(2,10));}
+}
+function netOpts(){var o={debug:0,config:{iceServers:ICE}},g=window.GB_PEER,k;if(g){for(k in g){o[k]=g[k];}}return o;}
+function randCode(){var a='ABCDEFGHJKLMNPQRSTUVWXYZ',s='',i;for(i=0;i<4;i++){s+=a.charAt(rnd(a.length));}return s;}
+function cleanName(v){return String(v||'').replace(/[<>]/g,'').trim().slice(0,16);}
+function netErr(e){
+  var t=e&&e.type;
+  if(t==='peer-unavailable'){return 'Room not found. Check the code, and make sure the host has not left.';}
+  if(t==='network'||t==='server-error'||t==='socket-error'||t==='socket-closed'){return 'Cannot reach the online service. Check your connection, or try another network.';}
+  return 'Connection problem'+(t?' ('+t+')':'')+'. Please try again.';
+}
+function netFail(msg){netClose();NET.msg=msg;NET.busy=false;screen='online';render();}
+function netClose(){
+  if(NET.timer){clearTimeout(NET.timer);NET.timer=null;}
+  if(NET.retry){clearTimeout(NET.retry);NET.retry=null;}
+  try{if(NET.conn){NET.conn.close();}}catch(e){}
+  try{NET.pl.forEach(function(p){if(p.conn){p.conn.close();}});}catch(e){}
+  try{if(NET.peer){NET.peer.destroy();}}catch(e){}
+  try{if(NET.wake){NET.wake.release();}}catch(e){}
+  NET.peer=null;NET.conn=null;NET.pl=[];NET.role='off';NET.code='';NET.lobby=null;NET.lost=false;NET.off=[];NET.wake=null;NET.arm=false;
+}
+function netLeave(){
+  try{sessionStorage.removeItem('gb-room');}catch(e){}
+  if(NET.role==='host'){NET.pl.forEach(function(p){try{if(p.conn&&p.conn.open){p.conn.send({t:'closed'});}}catch(e){}});}
+  var wasOnline=S&&S.online;
+  var peer=NET.peer;NET.peer=null;
+  setTimeout(function(){try{if(peer){peer.destroy();}}catch(e){}},300);
+  netClose();F.online=false;
+  if(wasOnline){S=null;}
+}
+function keepAwake(){try{if(navigator.wakeLock){navigator.wakeLock.request('screen').then(function(l){NET.wake=l;}).catch(function(){});}}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&NET.role==='host'){keepAwake();}});
+/* host */
+function netHost(){
+  if(NET.busy){return;}
+  var nm=cleanName(NET.form.name);
+  if(!nm){NET.msg='Enter your name first.';render();return;}
+  if(typeof Peer==='undefined'){NET.msg='The online library could not load. Check your connection and reload the page.';render();return;}
+  try{localStorage.setItem('gb-name',nm);}catch(e){}
+  netClose();NET.busy=true;NET.msg='';render();
+  var tries=0;
+  (function open(){
+    var code=randCode(),p,done=false;
+    try{p=new Peer('gbyte-'+code,netOpts());}catch(e){netFail('Could not start the online service.');return;}
+    NET.peer=p;
+    var to=setTimeout(function(){if(!done){done=true;netFail('Cannot reach the online service. This page may be blocked, or your network does not allow it.');}},9000);
+    p.on('open',function(){
+      if(done){return;}done=true;clearTimeout(to);
+      NET.role='host';NET.code=code;NET.seat=0;NET.busy=false;NET.msg='';
+      NET.pl=[{cid:netCid(),name:nm,conn:null,on:true}];
+      F.online=true;F.mode='full';screen='lobby';keepAwake();render();
+    });
+    p.on('connection',hostConn);
+    p.on('disconnected',function(){try{p.reconnect();}catch(e){}});
+    p.on('error',function(e){
+      if(NET.role==='host'){return;}
+      if(done){return;}
+      clearTimeout(to);
+      if(e&&e.type==='unavailable-id'&&tries++<5){done=true;try{p.destroy();}catch(x){}open();return;}
+      done=true;netFail(netErr(e));
+    });
+  })();
+}
+function netLobbyMsg(){
+  return {t:'lobby',code:NET.code,board:F.board,length:F.length,players:NET.pl.map(function(p){return {cid:p.cid,name:p.name,on:p.on};})};
+}
+function hostConn(conn){
+  conn.on('data',function(m){hostMsg(conn,m);});
+  conn.on('close',function(){
+    var ix=-1;NET.pl.forEach(function(p,i){if(p.conn===conn){ix=i;}});
+    if(ix<0){return;}
+    if(S&&S.online&&screen!=='lobby'){NET.pl[ix].on=false;NET.pl[ix].conn=null;render();}
+    else{NET.pl.splice(ix,1);render();}
+  });
+}
+function hostMsg(conn,m){
+  if(!m||typeof m!=='object'){return;}
+  var ix=-1;NET.pl.forEach(function(p,i){if(p.conn===conn){ix=i;}});
+  if(m.t==='hello'){
+    var cid=String(m.cid||'').slice(0,16),nm=cleanName(m.name)||'Player',known=-1;
+    NET.pl.forEach(function(p,i){if(p.cid===cid){known=i;}});
+    var started=!!(S&&S.online&&screen!=='lobby');
+    if(known>=0){NET.pl[known].conn=conn;NET.pl[known].on=true;}
+    else if(started){conn.send({t:'err',msg:'This game has already started.'});return;}
+    else if(NET.pl.length>=4){conn.send({t:'err',msg:'This room is full (4 players).'});return;}
+    else{NET.pl.push({cid:cid,name:nm,conn:conn,on:true});}
+    render();
+    netPush(true);
+  }else if(m.t==='act'&&ix>=0){
+    if(!S||!S.online||screen==='lobby'){return;}
+    var d={},k;for(k in (m.d||{})){d[k]=String(m.d[k]);}
+    act(String(m.a),d,ix);
+  }
+}
+function netSoon(){if(NET.timer){return;}NET.timer=setTimeout(function(){NET.timer=null;netPush();},40);}
+function snapState(){
+  var s=JSON.parse(JSON.stringify(S,function(k,v){return (k==='decks'||k==='hist')?undefined:v;}));
+  if(s.q&&S.phase==='question'){s.q.ai=-1;}
+  return s;
+}
+function netPush(){
+  if(NET.role!=='host'){return;}
+  if(screen==='lobby'||!S||!S.online){
+    var lm=netLobbyMsg();
+    NET.pl.forEach(function(p){try{if(p.conn&&p.conn.open){p.conn.send(lm);}}catch(e){}});
+    return;
+  }
+  var s=snapState(),off=NET.pl.map(function(p){return !p.on;}),sc=screen;
+  NET.seq++;
+  NET.pl.forEach(function(p,i){try{if(p.conn&&p.conn.open){p.conn.send({t:'state',screen:sc,S:s,seat:i,off:off,code:NET.code,seq:NET.seq});}}catch(e){}});
+}
+function netStart(){
+  if(NET.role!=='host'||NET.pl.length<2){return;}
+  F.mode='full';F.n=NET.pl.length;F.names=NET.pl.map(function(p){return p.name;});F.online=true;
+  splash(function(){newGame();screen='game';render();say('Game started');});
+}
+/* guest */
+function netJoin(){
+  if(NET.busy){return;}
+  var nm=cleanName(NET.form.name),code=String(NET.form.code||'').toUpperCase().replace(/[^A-Z]/g,'');
+  if(!nm){NET.msg='Enter your name first.';render();return;}
+  if(code.length!==4){NET.msg='Enter the 4-letter room code.';render();return;}
+  if(typeof Peer==='undefined'){NET.msg='The online library could not load. Check your connection and reload the page.';render();return;}
+  try{localStorage.setItem('gb-name',nm);}catch(e){}
+  netClose();NET.busy=true;NET.msg='';NET.code=code;render();
+  netConnect(code,nm,false);
+}
+function netConnect(code,nm,silent){
+  var p,done=false;
+  try{p=new Peer(netOpts());}catch(e){if(!silent){netFail('Could not start the online service.');}return;}
+  NET.peer=p;NET.role='guest';
+  function bad(msg){if(done){return;}done=true;if(silent){netRetry(code,nm);}else{netFail(msg);}}
+  var to=setTimeout(function(){bad('Cannot reach the room. Check the code, and ask the host to keep the page open.');},11000);
+  p.on('error',function(e){clearTimeout(to);bad(netErr(e));});
+  p.on('open',function(){
+    var c=p.connect('gbyte-'+code,{reliable:true});NET.conn=c;
+    c.on('open',function(){c.send({t:'hello',cid:netCid(),name:nm});});
+    c.on('data',function(m){if(!done){done=true;clearTimeout(to);}guestMsg(m);});
+    c.on('close',function(){
+      clearTimeout(to);
+      if(NET.role!=='guest'||NET.peer!==p){return;}
+      if(S&&S.online&&screen!=='end'||screen==='lobby'){NET.lost=true;render();netRetry(code,nm);}
+      else{netFail('Connection to the room was lost.');}
+    });
+  });
+}
+function netRetry(code,nm){
+  if(NET.retry){return;}
+  NET.tries=(NET.tries||0)+1;if(NET.tries>12){netFail('Could not reconnect to the room.');return;}
+  NET.retry=setTimeout(function(){
+    NET.retry=null;
+    if(NET.role!=='guest'&&!NET.lost){return;}
+    try{if(NET.peer){NET.peer.destroy();}}catch(e){}
+    netConnect(code,nm,true);
+  },2500);
+}
+function guestMsg(m){
+  if(!m||typeof m!=='object'){return;}
+  if(m.t==='err'){netFail(m.msg||'Could not join.');return;}
+  if(m.t==='closed'){try{sessionStorage.removeItem('gb-room');}catch(e){}netClose();F.online=false;S=null;NET.msg='The host closed the room.';screen='online';render();return;}
+  NET.busy=false;NET.lost=false;NET.tries=0;
+  try{sessionStorage.setItem('gb-room',NET.code);}catch(e){}
+  if(m.t==='lobby'){
+    NET.lobby=m;NET.code=m.code||NET.code;F.board=m.board;F.length=m.length;
+    var me=-1;m.players.forEach(function(p,i){if(p.cid===netCid()){me=i;}});
+    if(me>=0){NET.seat=me;}
+    if(screen!=='lobby'){F.online=true;screen='lobby';}
+    render();
+  }else if(m.t==='state'){
+    var old=S;
+    NET.seat=m.seat;NET.off=m.off||[];NET.code=m.code||NET.code;F.online=true;
+    if(old&&old.dice&&m.S.dice&&JSON.stringify(old.dice)===JSON.stringify(m.S.dice)){m.S.dice=old.dice;}
+    S=m.S;
+    if(m.screen!==screen){
+      NET.want=m.screen;
+      if(!NET.sw){NET.sw=true;splash(function(){NET.sw=false;screen=NET.want;render();});}
+      else{render();}
+    }else{render();}
+  }
+}
+function netCopy(){
+  var link=netLink();
+  function ok(){NET.copied=true;render();setTimeout(function(){NET.copied=false;render();},2000);}
+  try{navigator.clipboard.writeText(link).then(ok,function(){NET.msg='Copy failed. Share the code '+NET.code+' instead.';render();});}catch(e){NET.msg='Copy failed. Share the code '+NET.code+' instead.';render();}
+}
+function netLink(){return location.href.split('#')[0].split('?')[0]+'?room='+NET.code;}
+function qrSvg(url){
+  try{if(typeof qrcode==='undefined'){return '';}var q=qrcode(0,'M');q.addData(url);q.make();return q.createSvgTag({cellSize:4,margin:0,scalable:true});}catch(e){return '';}
+}
+function onlineHtml(){
+  var f=NET.form,b=NET.busy;
+  return '<div class="stack"><div><h2 id="h" tabindex="-1">Play online</h2><p class="muted" style="margin-top:6px">Play the full game with friends, each on their own device. One person creates a room, the others join with its code.</p></div>'+
+  (NET.msg?'<div class="banner lose" role="alert">'+esc(NET.msg)+'</div>':'')+
+  (b?'<p class="note" role="status">Connecting…</p>':'')+
+  '<section class="panel"><label class="lab">Your name<input type="text" maxlength="16" data-nf="name" value="'+esc(f.name)+'" autocomplete="off" placeholder="Your name"></label></section>'+
+  '<div class="onl"><section class="panel stack"><h3>Create a room</h3><p class="muted">You are the host. You choose the board and start the game. Keep this page open while you play.</p><div class="row"><button class="btn big" data-a="net-host" aria-disabled="'+b+'">Create a room</button></div></section>'+
+  '<section class="panel stack"><h3>Join a room</h3><label class="lab">Room code<input type="text" class="codein" maxlength="4" data-nf="code" value="'+esc(f.code)+'" autocomplete="off" autocapitalize="characters" placeholder="ABCD"></label><div class="row"><button class="btn big" data-a="net-join" aria-disabled="'+b+'">Join the room</button></div></section></div>'+
+  '<div class="row"><button class="btn sec" data-a="home">Back</button></div></div>';
+}
+function lobbyHtml(){
+  var host=NET.role==='host',pl=host?NET.pl.map(function(p){return {cid:p.cid,name:p.name,on:p.on};}):(NET.lobby?NET.lobby.players:[]),me=host?0:NET.seat,i;
+  var rows=pl.map(function(p,i){
+    return '<li class="lrow"><span class="dot" style="background:'+PCOL[i]+'" aria-hidden="true">'+esc((p.name[0]||'?').toUpperCase())+'</span><b>'+esc(p.name)+'</b>'+(i===0?'<span class="chip c-bonus">Host</span>':'')+(i===me?'<span class="chip c-light">You</span>':'')+(p.on?'':'<span class="chip">offline</span>')+'</li>';
+  }).join('');
+  for(i=pl.length;i<4;i++){rows+='<li class="lrow empty"><span class="dot" style="background:var(--line)" aria-hidden="true">+</span><span class="muted">Waiting for a player…</span></li>';}
+  var link=netLink(),qr=qrSvg(link);
+  var settings=host?
+    '<fieldset class="fs panel"><legend>Difficulty</legend>'+seg('board',F.board,[['easy','Easy board','CO₂ gauge from 0 to 20. Starts at 8, red zone from 17.'],['hard','Hard board','CO₂ gauge from 0 to 10. Starts at 4, red zone from 9. Adds disaster tiles.']])+'</fieldset>'+
+    '<fieldset class="fs panel"><legend>Length</legend>'+seg('length',F.length,[['normal','Normal','Ends when the city is full.'],['express','Express','Ends after 10 rounds. Two dice.']])+'</fieldset>'
+    :'<section class="panel"><h3>Game settings</h3><p>'+(F.board==='hard'?'Hard':'Easy')+' board · '+(F.length==='express'?'Express (10 rounds, two dice)':'Normal (ends when the city is full)')+'</p><p class="note">Only the host can change them.</p></section>';
+  return '<div class="stack"><div><h2 id="h" tabindex="-1">Room '+esc(NET.code)+'</h2><p class="muted" style="margin-top:6px">'+(host?'Share the code with your friends. When everybody is here, start the game.':'You are in. Waiting for the host to start the game.')+'</p></div>'+
+  (NET.msg?'<div class="banner lose" role="alert">'+esc(NET.msg)+'</div>':'')+
+  (NET.lost?'<div class="banner lose" role="alert">Connection lost. Reconnecting…</div>':'')+
+  '<div class="lobtop"><section class="panel stack"><span class="note">ROOM CODE</span><b class="codebig" aria-label="Room code '+esc(NET.code.split('').join(' '))+'">'+esc(NET.code)+'</b>'+(host?'<div class="row"><button class="btn sec" data-a="net-copy">'+(NET.copied?'Link copied':'Copy invite link')+'</button></div><p class="note">Friends can also scan the QR code.</p>':'')+'</section>'+
+  (host&&qr?'<section class="panel qrp" aria-label="QR code to join"><div class="qrbox">'+qr+'</div></section>':'')+'</div>'+
+  '<section class="panel stack"><h3>Players ('+pl.length+' of 4)</h3><ul class="lobl">'+rows+'</ul></section>'+settings+
+  '<div class="row">'+(host?'<button class="btn big" data-a="net-start" aria-disabled="'+(pl.length<2)+'">Start the game</button>':'')+'<button class="btn sec" data-a="home">Leave the room</button></div>'+(host&&pl.length<2?'<p class="note">You need at least 2 players.</p>':'')+'</div>';
 }
 
 /* events */
-function act(a,d){
+var TURNACT={roll:['roll'],answer:['question'],'to-build':['feedback'],pick:['build'],play:['roll','rest','feedback','card','done','build'],cell:['build','dpick'],'end-turn':['rest','feedback','card','done','build']};
+function act(a,d,rs){
+  if((a==='home'||a==='landing')&&NET.role!=='off'){
+    if(screen==='game'&&!NET.arm){NET.arm=true;render();setTimeout(function(){if(NET.arm){NET.arm=false;render();}},3500);return;}
+    NET.arm=false;netLeave();
+  }
+  if(a==='net-host'){netHost();return;}
+  if(a==='net-join'){netJoin();return;}
+  if(a==='net-start'){netStart();return;}
+  if(a==='net-copy'){netCopy();return;}
+  if(NET.role==='guest'&&FWD[a]){var dd={},kk;for(kk in d){dd[kk]=d[kk];}try{NET.conn.send({t:'act',a:a,d:dd});}catch(e){}return;}
+  if(S&&S.online&&TURNACT[a]){
+    var seat=rs!==undefined?rs:NET.seat;
+    if(a==='end-turn'&&(S.lost||S.full)){}
+    else if(S.cur!==seat||TURNACT[a].indexOf(S.phase)<0){return;}
+  }
+  if(S&&S.online&&a==='next-round'&&S.phase!=='round'){return;}
+  if(S&&S.online&&a==='again'&&NET.role!=='host'){return;}
+  if(a==='skip'){if(NET.role==='host'&&S&&S.online){stopMove();S.sel=null;if(S.phase==='round'){nextRound();}else{endTurn();}}return;}
   if(a==='home'||a==='landing'||a==='enter'||a==='mode'||a==='start'||a==='again'){stopMove();}
   if(a==='landing'){logoLiquid(function(){screen='landing';render();},true);return;}
-  if(a==='enter'){logoLiquid(function(){screen='home';render();},false);return;}
+  if(a==='enter'){logoLiquid(function(){screen=NET.joinLink?'online':'home';NET.joinLink=false;render();},false);return;}
   if(a==='rules'){rulesTab=d.t==='full'?'full':'quick';splash(function(){screen='rules';render();window.scrollTo(0,0);});return;}
   if(a==='rtab'){rulesTab=d.t;render();window.scrollTo(0,0);return;}
   if(a==='rjump'){var el=document.getElementById(d.t);if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}return;}
   if(a==='home'){splash(function(){screen='home';render();});return;}
-  if(a==='mode'){F.mode=d.m;splash(function(){screen='setup';render();});return;}
+  if(a==='mode'){F.online=false;if(d.m==='online'){NET.msg='';splash(function(){screen='online';render();});return;}F.mode=d.m;splash(function(){screen='setup';render();});return;}
   if(a==='start'){splash(function(){newGame();screen='game';render();say('Game started');});return;}
   if(a==='again'){splash(function(){newGame();screen='game';render();});return;}
   if(!S){return;}
@@ -1795,6 +2066,7 @@ app.addEventListener('keydown',function(e){
 app.addEventListener('input',function(e){
   var d=e.target.dataset;
   if(d&&d.name!==undefined){F.names[+d.name]=e.target.value;}
+  if(d&&d.nf){var v=e.target.value;if(d.nf==='code'){v=v.toUpperCase().replace(/[^A-Z]/g,'').slice(0,4);e.target.value=v;}NET.form[d.nf]=v;}
 });
 app.addEventListener('change',function(e){
   var d=e.target.dataset;
