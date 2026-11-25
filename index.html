@@ -332,6 +332,14 @@ svg.city{max-width:820px}
 .land .btn.go:hover,.land .btn.go:focus-visible{filter:none;background:var(--btn-ink);color:var(--btn);outline:3px solid var(--btn);outline-offset:5px}
 body.landing{background:var(--sp-bg)}
 body.landing .brand,body.landing .foot{display:none}
+.credits{margin-top:40px;background:var(--surface2);border-top:2px solid var(--edge);color:var(--ink);padding-block:22px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.credits-in{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 32px;font-size:.88rem;line-height:1.45}
+.credits-in>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cr-brand b{font-family:var(--font-head);font-size:1.05rem;letter-spacing:.02em}
+.cr-brand span,.cr-meta span{color:var(--muted)}
+.cr-meta{text-align:right}
+@media (max-width:620px){.cr-meta{text-align:left}}
+body.landing .credits{background:transparent;border-top-color:transparent}
 body.landing .band-in{justify-content:flex-end}
 body.landing .band{background:transparent;box-shadow:none}
 @keyframes landIn{from{transform:scale(.7) rotate(-6deg);opacity:0}to{transform:none;opacity:1}}
@@ -592,6 +600,10 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
   <main id="app"></main>
   <p class="foot">Prototype. The questions and cards are samples to be replaced by the final game content.</p>
 </div>
+<footer class="credits"><div class="credits-in">
+  <div class="cr-brand"><b>GreenByte</b><span>A board game about Green IT and eco design, with a digital add-on.</span></div>
+  <div class="cr-meta"><span>&copy; 2026 GreenByte. All rights reserved.</span><span>Student project created at My Digital School.</span></div>
+</div></footer>
 <div id="live" class="sr" aria-live="polite"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
