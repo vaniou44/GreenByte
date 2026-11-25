@@ -1295,6 +1295,8 @@ function render(){
   else if(screen==='lobby'){h=lobbyHtml();}
   else if(screen==='game'){h=S.mode==='manual'?manualHtml():autoHtml();}
   else{h=endHtml();}
+  var bEl=(screen==='game')?document.getElementById('board'):null,bY=null;
+  if(bEl){var br0=bEl.getBoundingClientRect();if(br0.bottom>0&&br0.top<window.innerHeight){bY=br0.top;}}
   app.innerHTML=h;
   chatSync();
   attach3d();
@@ -1307,6 +1309,7 @@ function render(){
   }
   if(!done){var hd=document.getElementById('h');if(hd){hd.focus({preventScroll:true});}}
   if(NET.role==='host'){netSoon();}
+  if(bY!==null){var bEl2=document.getElementById('board');if(bEl2){var ddy=bEl2.getBoundingClientRect().top-bY;if(Math.abs(ddy)>2){window.scrollBy({top:ddy,left:0,behavior:'instant'});}}}
   autoEndArm();
   gxReact();
 }
