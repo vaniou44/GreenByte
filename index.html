@@ -331,6 +331,42 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
 @media (prefers-reduced-motion:no-preference){
   #mas.on .mchar svg{animation:mbob 2.4s ease-in-out infinite .8s}
 }
+.gm .mbody{fill:#2E9B58}
+.gm .mbod,.gm .mface,.gm .meyes,.gm .mpup,.gm .mspr{transform-box:view-box}
+.gm .mar1,.gm .mar2,.gm .mal1,.gm .mal2,.gm .mlidl,.gm .mlidr,.gm .mbrl,.gm .mbrr{transform-box:view-box}
+.gm .mar1{transform-origin:94px 88px}.gm .mar2{transform-origin:105px 100px}
+.gm .mal1{transform-origin:21px 86px}.gm .mal2{transform-origin:11px 99px}
+.gm .mbod{transform-origin:60px 124px}
+.gm .meyes{transform-origin:60px 62px}
+.gm .mspr{transform-origin:62px 12px}
+:root[data-theme="dark"] .gm .mbody{fill:#52CB82}
+.mfrown{display:none}.gm.sad .mfrown{display:block}.gm.sad .msmile{display:none}
+@media (prefers-reduced-motion:no-preference){
+  .gm .mbod{animation:mturn 9s ease-in-out infinite 1.2s}
+  .gm .mface{animation:mlook 9s ease-in-out infinite 1.2s}
+  .gm .mpup{animation:mpup 9s ease-in-out infinite 1.2s}
+  .gm .mspr{animation:mspr 3s ease-in-out infinite}
+  .gm .meyes{animation:meye 6s infinite 2s}
+  .gm .mlidl,.gm .mbrl{animation-duration:11s;animation-iteration-count:infinite;animation-delay:1s}
+  .gm .mlidr,.gm .mbrr{animation-duration:11s;animation-iteration-count:infinite;animation-delay:1s}
+  .gm .mlidl{animation-name:mlidl}.gm .mlidr{animation-name:mlidr}
+  .gm .mbrl{animation-name:mbrl}.gm .mbrr{animation-name:mbrr}
+  .gm .mar1{animation:mar1 13s ease-in-out infinite .6s}.gm .mar2{animation:mar2 13s ease-in-out infinite .6s}
+  .gm .mal1{animation:mal1 13s ease-in-out infinite .6s}.gm .mal2{animation:mal2 13s ease-in-out infinite .6s}
+  .gm .gmc svg{animation:mbob 2.6s ease-in-out infinite}
+}
+.gm{display:flex;align-items:flex-end;gap:10px;margin-top:6px}
+.gm .gmc{flex:0 0 auto;width:84px}
+.gm .gmc svg{display:block;width:100%;height:auto;overflow:visible}
+:root[data-theme="dark"] .gm .gmc svg{filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 2px #fff) drop-shadow(0 0 8px rgba(183,228,168,.45))}
+.gm .gmb{position:relative;flex:1 1 auto;min-width:0;background:var(--surface2);color:var(--ink);border:2px solid var(--ink);border-radius:18px 18px 18px 6px;padding:10px 14px;margin-bottom:26px;animation:gmpop .35s ease-out}
+.gm .gmb::after{content:"";position:absolute;left:-9px;bottom:12px;width:14px;height:14px;background:var(--surface2);border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:rotate(45deg)}
+.gm .mname{font-family:var(--font-head);font-weight:700;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 2px}
+.gm .gmt{margin:0;font-size:1rem;line-height:1.4;font-weight:600}
+.gm .gmt b{font-weight:800}
+@keyframes gmpop{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.gm .gmb{animation:none}}
+@media (max-width:520px){.gm .gmc{width:68px}}
 #mas .mbody{fill:#2E9B58}
 :root[data-theme="dark"] #mas{background:rgba(0,0,0,.28)}
 :root[data-theme="dark"] #mas .mbody{fill:#52CB82}
@@ -1183,7 +1219,7 @@ function autoEndStop(){if(AE.iv){clearInterval(AE.iv);AE.iv=null;}AE.key='';}
 function autoEndArm(){
   if(!aeOn()){autoEndStop();return;}
   var k=S.round+':'+S.cur+':'+S.phase;
-  if(AE.key!==k){AE.key=k;AE.t=Date.now()+5000;if(!AE.iv){AE.iv=setInterval(aeTick,250);}}
+  if(AE.key!==k){AE.key=k;AE.t=Date.now()+(S.phase==='feedback'?10000:5000);if(!AE.iv){AE.iv=setInterval(aeTick,250);}}
   aeLabel();
 }
 function render(){
@@ -1301,6 +1337,34 @@ function snap(){S.hist.push(JSON.stringify({players:S.players,co2:S.co2,round:S.
 function mut(fn){S.msg='';snap();fn();if(S.co2>=S.b.red){S.lost=true;}render();}
 
 /* automatic mode */
+/* in-game mascot */
+var GQ={
+ idle:['Take your time. The planet can wait... a little.','Think green!','No pressure. Okay, a little pressure.','Trust your inner eco-nerd.'],
+ right:['Nailed it!','Big brain energy!','Green genius!','Chef\'s kiss.','Look at you, saving the planet!'],
+ wrong:['Oops!','Ouch, not quite!','Plot twist: that was not it.','Don\'t worry, even servers crash.','Oh nooo... so close. Well, not really.'],
+ malus:['Oops!','Oh nooo...','How unfortunate.','Well, that escalated quickly.','That is going to hurt the CO₂ gauge.','Even my leaf wilted a little.'],
+ bonus:['Ooh, nice one!','Now we are talking!','Eco-hero move!','The planet says thank you!'],
+ dis:['Oh nooo... not the servers!','Well, that was not in the user manual.','Mother Nature sends her regards.','Quick, everybody act like this did not happen.','How very, very unfortunate.','Plot twist nobody ordered.']
+};
+function gqPick(list,seed){var h=0,i;seed=String(seed);for(i=0;i<seed.length;i++){h=(h*31+seed.charCodeAt(i))>>>0;}return list[h%list.length];}
+function gmBox(text,sad){
+  return '<div class="gm'+(sad?' sad':'')+'"><div class="gmc" aria-hidden="true">'+MAS_SVG+'</div><div class="gmb" role="status"><p class="mname">Byte</p><p class="gmt">'+text+'</p></div></div>';
+}
+function gmHtml(){
+  var ph=S.phase,sd=S.round+':'+S.cur+':'+(S.tile||'')+':'+(S.card?S.card.t:'')+':'+(S.q?S.q.id:'');
+  if(ph==='question'){return gmBox(esc(gqPick(GQ.idle,sd)),false);}
+  if(ph==='feedback'){
+    if(S.ans&&S.ans.ok){return gmBox('<b>'+esc(gqPick(GQ.right,sd))+'</b>',false);}
+    return gmBox('<b>'+esc(gqPick(GQ.wrong,sd))+'</b> '+esc(S.q.why),true);
+  }
+  if(ph==='dpick'||ph==='event'){return gmBox('<b>'+esc(gqPick(GQ.dis,sd))+'</b>',true);}
+  if(ph==='card'&&S.card){
+    if(S.card.kk==='disaster'){return gmBox('<b>'+esc(gqPick(GQ.dis,sd))+'</b>',true);}
+    if(S.card.k==='malus'){return gmBox('<b>'+esc(gqPick(GQ.malus,sd))+'</b>',true);}
+    if(S.card.k==='bonus'){return gmBox('<b>'+esc(gqPick(GQ.bonus,sd))+'</b>',false);}
+  }
+  return '';
+}
 function autoHtml(){
   var p=cur(),ph=S.phase,body='',mine=isMine();
   function C(h){return mine?h:'';}
@@ -1327,7 +1391,7 @@ function autoHtml(){
   }else if(ph==='feedback'){
     var q2=S.q,a=S.ans;
     body+='<div class="row"><span class="chip '+LV[S.tile].cls+'">'+LV[S.tile].label.toUpperCase()+'</span></div><h3>'+esc(q2.q)+'</h3><div class="opts">'+q2.o2.map(function(o,i){return '<div class="opt'+(i===q2.ai?' right':(i===a.idx?' wrong':''))+'">'+esc(o)+(i===q2.ai?' <b>(correct)</b>':'')+'</div>';}).join('')+'</div>'+
-      '<div class="banner '+(a.ok?'win':'lose')+'" role="status"><b>'+(mine?'':esc(p.name)+': ')+(a.ok?'Right answer. +'+LV[S.tile].pts+' Green Points and +'+LV[S.tile].pts+' Eco-Coins.':'Wrong answer. No points, and CO₂ +1.')+'</b><br>'+esc(q2.why)+'</div>'+
+      '<div class="banner '+(a.ok?'win':'lose')+'" role="status"><b>'+(mine?'':esc(p.name)+': ')+(a.ok?'Right answer. +'+LV[S.tile].pts+' Green Points and +'+LV[S.tile].pts+' Eco-Coins.':'Wrong answer. No points, and CO₂ +1.')+'</b>'+(a.ok?'<br>'+esc(q2.why):'')+'</div>'+
       C('<div class="row">'+(a.ok?'<button class="btn" data-a="to-build">Build or repair</button><button class="btn sec" data-a="end-turn">End turn</button>':'<button class="btn" data-a="end-turn">End turn</button>')+'</div>')+(mine?'':'<p class="note" role="status">Waiting for '+esc(p.name)+' to continue…</p>');
   }else if(ph==='event'){
     var ev=S.card;
@@ -1368,7 +1432,7 @@ function autoHtml(){
   else if(ph!=='moving'&&ph!=='round'&&ph!=='dpick'&&mine){body=handHtml(p)+body;}
   var mapPanel=S.mode==='auto'?'':'<section class="panel" aria-label="Board"><div class="bhead"><h3>The board'+(S.length==='normal'?' <span class="note">· city '+S.cells.filter(function(x){return x.owner!==null;}).length+' of '+S.cells.length+' spaces built</span>':'')+'</h3>'+viewCtl()+'</div><div id="board">'+boardView()+'</div>'+legendHtml()+'</section>';
   if(S.mode==='auto'){mapPanel='';}
-  return '<div class="stack"><h2 id="h" tabindex="-1" class="sr">Game</h2>'+statusHtml()+stripHtml()+'<div class="turnlay"'+(S.mode==='auto'?' style="grid-template-columns:minmax(0,1fr)"':'')+'><section class="panel stack" style="gap:14px" aria-label="Your turn">'+body+'</section>'+mapPanel+'</div>'+logHtml()+'</div>';
+  return '<div class="stack"><h2 id="h" tabindex="-1" class="sr">Game</h2>'+statusHtml()+stripHtml()+'<div class="turnlay"'+(S.mode==='auto'?' style="grid-template-columns:minmax(0,1fr)"':'')+'><section class="panel stack" style="gap:14px" aria-label="Your turn">'+body+((S.lost||S.full)?'':gmHtml())+'</section>'+mapPanel+'</div>'+logHtml()+'</div>';
 }
 function handHtml(p){
   var shown=p.hand.filter(function(c){return !(S.phase==='card'&&S.cardHx>=0&&p.hand.indexOf(c)===S.cardHx);});
@@ -1776,10 +1840,11 @@ function masAnswer(played){
   if(played){masSay('Great, have fun! Pick a game mode.',false,function(){masLater(function(){masClose();},500);});}
   else{masSay('No problem! Let me show you the rules.',false,function(){masLater(function(){masClose(function(){act('rules',{t:'quick'});});},500);});}
 }
+var MAS_SVG='<svg viewBox="0 0 120 134" aria-hidden="true" focusable="false"><ellipse cx="60" cy="130" rx="38" ry="4" fill="rgba(0,0,0,.25)"/><g class="mbod"><g class="mar1"><path d="M94 88 L105 100" fill="none" stroke="#17301F" stroke-width="4" stroke-linecap="round"/><g class="mar2"><path d="M105 100 L103 114" fill="none" stroke="#17301F" stroke-width="4" stroke-linecap="round"/><circle class="mbody" cx="103" cy="114" r="4" stroke="#17301F" stroke-width="2.5"/></g></g><g class="mal1"><path d="M21 86 L11 99" fill="none" stroke="#17301F" stroke-width="4" stroke-linecap="round"/><g class="mal2"><path d="M11 99 L13 113" fill="none" stroke="#17301F" stroke-width="4" stroke-linecap="round"/><circle class="mbody" cx="13" cy="113" r="4" stroke="#17301F" stroke-width="2.5"/></g></g><path class="mbody" d="M60 122C22 116 8 72 20 44 32 18 70 8 102 12c8 42-4 96-42 110z" stroke="#17301F" stroke-width="3.5" stroke-linejoin="round"/><path d="M34 100C50 78 68 52 94 26" fill="none" stroke="#8FD19E" stroke-width="3" stroke-linecap="round" opacity=".7"/><g class="mspr"><path d="M60 12C58 4 62 -2 70 -4" fill="none" stroke="#17301F" stroke-width="3.5" stroke-linecap="round"/><path d="M70 -4c8-4 16-2 18 4-8 4-16 2-18-4z" fill="#8FD19E" stroke="#17301F" stroke-width="3" stroke-linejoin="round"/></g><g class="mface"><path class="mbrl" d="M37 47C40 40 49 38 56 41C52 46 44 48 37 47z" fill="#17301F"/><path class="mbrr" d="M64 40C70 38 78 40 81 46C75 47 67 45 64 40z" fill="#17301F"/><g class="meyes"><ellipse cx="47" cy="66" rx="10" ry="13" fill="#fff" stroke="#17301F" stroke-width="2"/><ellipse cx="67" cy="64" rx="10" ry="13" fill="#fff" stroke="#17301F" stroke-width="2"/><g class="mlidl"><g class="mpup"><circle cx="48" cy="71" r="4.2" fill="#17301F"/></g><path d="M37.2 67Q47 66 56.8 67" fill="none" stroke="#17301F" stroke-width="2" stroke-linecap="round"/></g><g class="mlidr"><g class="mpup"><circle cx="68" cy="69" r="4.2" fill="#17301F"/></g><path d="M57.2 65Q67 64 76.8 65" fill="none" stroke="#17301F" stroke-width="2" stroke-linecap="round"/></g></g><path class="msmile" d="M50 88Q58 93 68 87" fill="none" stroke="#17301F" stroke-width="3.5" stroke-linecap="round"/><path class="mfrown" d="M50 93Q58 85 68 92" fill="none" stroke="#17301F" stroke-width="3.5" stroke-linecap="round"/><circle cx="34" cy="82" r="5" fill="#F08A5D" opacity=".6"/><circle cx="86" cy="76" r="5" fill="#F08A5D" opacity=".6"/></g></g><ellipse cx="46" cy="124" rx="9" ry="5" fill="#17301F"/><ellipse cx="74" cy="124" rx="9" ry="5" fill="#17301F"/></svg>';
 function mascotStart(){
   if(document.getElementById('mas')){return;}
   var o=document.createElement('div');o.id='mas';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.setAttribute('aria-label','Welcome to GreenByte');
-  o.innerHTML='<div class="mbox"><div class="mbub"><p class="mname">Byte, your guide</p><p class="mtx" id="mtx" aria-live="polite"></p><div class="mbtnw" id="mbw"><div><div class="mbtns"><button class="btn" type="button" data-m="y">Yes, I have</button><button class="btn sec" type="button" data-m="n">No, show me the rules</button></div></div></div></div><div class="mchar"><svg viewBox="0 0 120 134" aria-hidden="true" focusable="false"><ellipse cx="60" cy="130" rx="38" ry="4" fill="rgba(0,0,0,.25)"/><g class="mbod"><g class="mar1"><path d="M94 88 L105 100" fill="none" stroke="#17301F" stroke-width="4" stroke-linecap="round"/><g class="mar2"><path d="M105 100 L103 114" fill="none" stroke="#17301F" stroke-width="4" stroke-linecap="round"/><circle class="mbody" cx="103" cy="114" r="4" stroke="#17301F" stroke-width="2.5"/></g></g><g class="mal1"><path d="M21 86 L11 99" fill="none" stroke="#17301F" stroke-width="4" stroke-linecap="round"/><g class="mal2"><path d="M11 99 L13 113" fill="none" stroke="#17301F" stroke-width="4" stroke-linecap="round"/><circle class="mbody" cx="13" cy="113" r="4" stroke="#17301F" stroke-width="2.5"/></g></g><path class="mbody" d="M60 122C22 116 8 72 20 44 32 18 70 8 102 12c8 42-4 96-42 110z" stroke="#17301F" stroke-width="3.5" stroke-linejoin="round"/><path d="M34 100C50 78 68 52 94 26" fill="none" stroke="#8FD19E" stroke-width="3" stroke-linecap="round" opacity=".7"/><g class="mspr"><path d="M60 12C58 4 62 -2 70 -4" fill="none" stroke="#17301F" stroke-width="3.5" stroke-linecap="round"/><path d="M70 -4c8-4 16-2 18 4-8 4-16 2-18-4z" fill="#8FD19E" stroke="#17301F" stroke-width="3" stroke-linejoin="round"/></g><g class="mface"><path class="mbrl" d="M37 47C40 40 49 38 56 41C52 46 44 48 37 47z" fill="#17301F"/><path class="mbrr" d="M64 40C70 38 78 40 81 46C75 47 67 45 64 40z" fill="#17301F"/><g class="meyes"><ellipse cx="47" cy="66" rx="10" ry="13" fill="#fff" stroke="#17301F" stroke-width="2"/><ellipse cx="67" cy="64" rx="10" ry="13" fill="#fff" stroke="#17301F" stroke-width="2"/><g class="mlidl"><g class="mpup"><circle cx="48" cy="71" r="4.2" fill="#17301F"/></g><path d="M37.2 67Q47 66 56.8 67" fill="none" stroke="#17301F" stroke-width="2" stroke-linecap="round"/></g><g class="mlidr"><g class="mpup"><circle cx="68" cy="69" r="4.2" fill="#17301F"/></g><path d="M57.2 65Q67 64 76.8 65" fill="none" stroke="#17301F" stroke-width="2" stroke-linecap="round"/></g></g><path d="M50 88Q58 93 68 87" fill="none" stroke="#17301F" stroke-width="3.5" stroke-linecap="round"/><circle cx="34" cy="82" r="5" fill="#F08A5D" opacity=".6"/><circle cx="86" cy="76" r="5" fill="#F08A5D" opacity=".6"/></g></g><ellipse cx="46" cy="124" rx="9" ry="5" fill="#17301F"/><ellipse cx="74" cy="124" rx="9" ry="5" fill="#17301F"/></svg></div></div>';
+  o.innerHTML='<div class="mbox"><div class="mbub"><p class="mname">Byte, your guide</p><p class="mtx" id="mtx" aria-live="polite"></p><div class="mbtnw" id="mbw"><div><div class="mbtns"><button class="btn" type="button" data-m="y">Yes, I have</button><button class="btn sec" type="button" data-m="n">No, show me the rules</button></div></div></div></div><div class="mchar">'+MAS_SVG+'</div></div>';
   document.body.appendChild(o);MAS.on=true;
   o.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-m]');if(b){masAnswer(b.getAttribute('data-m')==='y');}});
   document.addEventListener('keydown',masKey,true);
