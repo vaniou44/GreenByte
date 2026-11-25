@@ -363,6 +363,7 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/mqtt@5.15.1/dist/mqtt.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 (function(){
@@ -453,6 +454,11 @@ var DISASTERS=[
  {t:'Hardware failure',x:'A critical component breaks down.',type:'server'}
 ];
 
+var TURN_DIS=DISASTERS.concat([
+ {t:'Data leak',x:'A breach costs you time and money to clean up.',coin:1},
+ {t:'Supply shortage',x:'Spare parts are late and prices jump.',coin:1},
+ {t:'Repair bill',x:'Maintenance costs more than planned.',coin:1}
+]);
 var app=document.getElementById('app'),live=document.getElementById('live');
 function setTheme(v,save){
   document.documentElement.setAttribute('data-theme',v);if(save){document.body.classList.add('themed');}
@@ -484,6 +490,7 @@ function newGame(){
     S.decks.bonus=shuffle(CARDS.filter(function(c){return c.k==='bonus';}));
     S.decks.malus=shuffle(CARDS.filter(function(c){return c.k==='malus';}));
     S.decks.disaster=shuffle(DISASTERS);
+    S.decks.tdis=shuffle(TURN_DIS);
   }
   if(S.mode==='full'){
     var gg=GEO[F.board];
@@ -496,6 +503,7 @@ function draw(k){
   if(!S.decks[k].length){
     if(LV[k]){S.decks[k]=shuffle(QUESTIONS.filter(function(q){return q.lv===k;}));log('Every '+LV[k].label.toLowerCase()+' question has been asked: the deck is shuffled again.');}
     else if(k==='disaster'){S.decks[k]=shuffle(DISASTERS);}
+    else if(k==='tdis'){S.decks[k]=shuffle(TURN_DIS);}
     else{S.decks[k]=shuffle(CARDS.filter(function(c){return c.k===k;}));}
   }
   return S.decks[k].pop();
@@ -913,7 +921,7 @@ function viewCtl(){
 window.v3Theme=function(){if(V3.live){V3.theme=null;v3Sync();}};
 
 /* ---- dice inside the 3D scene + blinking build highlights ---- */
-var DSZ=0.85,DY=CTOP+0.425,DARCS=[[0,0.55,2.4],[0.55,0.97,1.1],[0.97,1.32,0.5],[1.32,1.55,0.18]],DT=1.7;
+var DSZ=0.62,DY=CTOP+0.31,DARCS=[[0,0.55,2.4],[0.55,0.97,1.1],[0.97,1.32,0.5],[1.32,1.55,0.18]],DT=1.7;
 function v3DiceBuild(n){
   var T=V3.T;
   if(V3.dg){V3.sc.remove(V3.dg);}
@@ -936,11 +944,20 @@ function v3DiceRestPos(n){
   var g=geo(),P=V3.pw[S.cur],tx=V3.follow&&P?P.cur.x:0,tz=V3.follow&&P?P.cur.z+1.5:0.2,cx=g.W/2,cy=g.H/2,out=[];
   var cs=g.cells.map(function(c){return {x:(c.x-cx)/US,z:(c.y-cy)/US};});
   cs.sort(function(a,b){return Math.hypot(a.x-tx,a.z-tz)-Math.hypot(b.x-tx,b.z-tz);});
-  for(var k=0;k<n;k++){out.push({x:cs[k].x+(Math.random()-0.5)*0.12,z:cs[k].z+(Math.random()-0.5)*0.12});}
+  var used=[],j;
+  for(var k=0;k<n;k++){
+    for(j=0;j<cs.length;j++){
+      var c=cs[j],far=true;
+      used.forEach(function(u){if(Math.hypot(u.x-c.x,u.z-c.z)<1.3){far=false;}});
+      if(far){used.push(c);break;}
+    }
+    if(used.length<=k){used.push(cs[k]||cs[0]);}
+  }
+  used.forEach(function(c){out.push({x:c.x+(Math.random()-0.5)*0.1,z:c.z+(Math.random()-0.5)*0.1});});
   return out;
 }
 function v3DiceSet(vals,rest){
-  V3.dice.forEach(function(d,i){d.p1=rest[i];d.qT=v3Face(vals[i]);d.g.quaternion.copy(d.qT);d.g.position.set(rest[i].x,DY,rest[i].z);d.sh.position.set(rest[i].x,CTOP+0.01,rest[i].z);d.sh.scale.setScalar(0.42);});
+  V3.dice.forEach(function(d,i){d.p1=rest[i];d.qT=v3Face(vals[i]);d.g.quaternion.copy(d.qT);d.g.position.set(rest[i].x,DY,rest[i].z);d.sh.position.set(rest[i].x,CTOP+0.01,rest[i].z);d.sh.scale.setScalar(0.32);});
 }
 function v3DiceShow(vals){
   V3.dv=vals;v3DiceBuild(vals.length);v3DiceSet(vals,v3DiceRestPos(vals.length));V3.dmode='rest';V3.dg.visible=true;
@@ -977,11 +994,11 @@ function v3DiceStep(now){
     q=new T.Quaternion().setFromAxisAngle(new T.Vector3(mz/L,0,-mx/L),-(L*(1-m))/(DSZ*0.5)*0.8).multiply(q);
     q.multiply(d.qT);
     d.g.quaternion.copy(q);d.g.position.set(x,DY+h+lift,z);
-    d.sh.position.set(x,CTOP+0.01,z);d.sh.scale.setScalar(0.42/(1+(h+lift)*0.7));
+    d.sh.position.set(x,CTOP+0.01,z);d.sh.scale.setScalar(0.32/(1+(h+lift)*0.7));
     d.g.visible=d.sh.visible=tk>-0.01;
     if(tk<DT+0.05){alive=true;}
   });
-  if(!alive){V3.dmode='rest';V3.dice.forEach(function(d){d.g.quaternion.copy(d.qT);d.g.position.set(d.p1.x,DY,d.p1.z);d.sh.position.set(d.p1.x,CTOP+0.01,d.p1.z);d.sh.scale.setScalar(0.42);});}
+  if(!alive){V3.dmode='rest';V3.dice.forEach(function(d){d.g.quaternion.copy(d.qT);d.g.position.set(d.p1.x,DY,d.p1.z);d.sh.position.set(d.p1.x,CTOP+0.01,d.p1.z);d.sh.scale.setScalar(0.32);});}
   return alive;
 }
 function v3Highlights(){
@@ -1116,7 +1133,7 @@ function quickRules(){
   return '<div class="rbox"><b>To win:</b> reach <b>65% Performance</b> (50% in Express mode) and score the <b>most Green Points</b>, before the CO₂ gauge hits the red zone.</div>'+
   rtab('q1','Four things to track','<ul><li><b>Green Points:</b> your score. You earn them by answering questions and they never go down.</li><li><b>Eco-Coins:</b> your money. You win as many as Green Points and spend them to build.</li><li><b>Performance bar:</b> yours alone. It starts at 20%. You need 65% or more to win (50% in Express mode).</li><li><b>CO₂ gauge:</b> shared by everyone. If it reaches the red zone, everybody loses.</li></ul>')+
   rtab('q2','Setup','<ol class="rsteps"><li>Pick a side of the board, Easy or Hard.</li><li>Pick a color: pawn, Base and Performance bar. Pawn on START.</li><li>Place your Bases in turn on empty spaces of the city.</li><li>Performance bars at 20%. CO₂ marker on 8 (Easy) or 4 (Hard).</li><li>Shuffle the decks. Keep the three question levels apart.</li><li>Choose Normal or Express. The youngest player starts, then clockwise.</li></ol>')+
-  rtab('q3','Your turn','<ol class="rsteps"><li><b>Roll and move.</b> Roll the die and move clockwise. In Express mode, roll two dice and add them.</li><li><b>Resolve your tile.</b> Green tile: answer a question. Right answer: Green Points and Eco-Coins. Wrong answer: nothing, and <b>CO₂ +1</b>.</li><li><b>Build or repair,</b> only after a right answer. Then pass the dice to your left.</li></ol>'+rtable(['Green tile','Question','Green Points','Eco-Coins'],[['Light','Easy',1,1],['Medium','Intermediate',2,2],['Dark','Hard',3,3]]))+
+  rtab('q3','Your turn','<ol class="rsteps"><li><b>Roll and move.</b> Roll the die and move clockwise. In Express mode, roll two dice and add them.</li><li><b>Resolve your tile.</b> Green tile: answer a question. Right answer: Green Points and Eco-Coins. Wrong answer: nothing, and <b>CO₂ +1</b>.</li><li><b>Build or repair,</b> only after a right answer. Then pass the dice to your left.</li></ol><p><b>Easy board, disaster at the end of each round.</b> When every player has played, one disaster card hits one player, drawn at random: they lose one of their infrastructures of the type named on the card, or 1 Eco-Coin. If they have none of that type, they are spared. Sometimes (about 1 round in 3), it is an area disaster (flood, wildfire, earthquake...): a whole part of the city is hit (top left, top right, bottom left, bottom right or center), and the infrastructures there (up to 5) are ruined, whoever owns them. In the app\'s Automatic and Full game modes, the app does it for you.</p>'+rtable(['Green tile','Question','Green Points','Eco-Coins'],[['Light','Easy',1,1],['Medium','Intermediate',2,2],['Dark','Hard',3,3]]))+
   rtab('q4','Other tiles','<ul><li><b>Bonus (+) and malus (−):</b> draw a card and do what it says. A card marked SAVE is kept and played later, on your own turn. Eco-Coins never drop below 0.</li><li><b>Disaster (!), Hard board only:</b> draw a card. It ruins one of your own infrastructures of the type named. None of that type? Nothing is ruined, and <b>CO₂ +1</b>.</li></ul><div class="rbox">A <b>ruined</b> infrastructure keeps its space and nobody can build there. Its effects stop. Repairing it brings them back.</div>')+
   rtab('q5','Build your city',R_INFRA()+'<ul><li><b>One build per turn,</b> and only after a right answer. If you can\'t afford it, you keep your coins.</li><li><b>Stay connected:</b> build on an empty city space touching your Base or one of your own infrastructures.</li><li>Effects apply right away. Performance can\'t go above 100%.</li><li><b>Repair</b> replaces your build for the turn. It is free.</li></ul>')+
   rtab('q6','End of a round','<p>When every player has played once, <b>the CO₂ marker goes up by 1</b>. Then check whether the game is over.</p><div class="rbox red"><b>Red zone.</b> The moment the CO₂ marker reaches it, the game stops and <b>everybody loses</b>, even in the middle of a turn.</div>'+rtable(['Gauge','Range','Start','Warning','Red zone'],[['Easy','0 to 20',8,'from 11','from 17'],['Hard','0 to 10',4,'from 6','from 9']]))+
@@ -1125,7 +1142,7 @@ function quickRules(){
 function fullRules(){
   return rtab('f1','The goal','<p>Your city needs digital infrastructure, but every server and data center adds CO₂. Answer questions to earn Eco-Coins, then build the infrastructure that raises your Performance without pushing the shared CO₂ gauge too high.</p><div class="rbox"><b>To win:</b> reach 65% Performance (50% in Express mode) and score the most Green Points, before the CO₂ gauge hits the red zone.</div><ul><li><b>Green Points:</b> your score. You earn them by answering questions, and they never go down.</li><li><b>Eco-Coins:</b> your spending money. You earn as many as Green Points, and you spend them to build.</li><li><b>Performance bar:</b> yours alone. It starts at 20%, and you need 65% or more to win (50% in Express mode).</li><li><b>CO₂ gauge:</b> shared by everyone. If it reaches the red zone, everybody loses (17 on the Easy gauge, 9 on the Hard gauge).</li></ul><p class="muted"><b>In the box:</b> a board with 2 sides (Easy and Hard), infrastructure tiles, 4 pawns, Eco-Coin tokens, 2 dice (the 2nd is for Express mode), Green Point markers, a Base and a Performance bar per player, question cards in 3 levels, bonus, malus and disaster cards, and a CO₂ marker. You also need a smartphone for the digital add-on.</p>')+
   rtab('f2','Setup',rsteps(['<b>Choose a difficulty and lay out the board.</b> Pick the Easy or Hard side and put the board in the middle of the table. The city is in the center and the circuit runs around it. The Hard side adds disaster tiles.','<b>Pick a color.</b> Each player takes a pawn, a Base and a Performance bar in the same color. Put your pawn on START.','<b>Place your Bases.</b> Taking turns, each player puts their Base on an empty space of the city. Your Base is where your own infrastructure will grow from.','<b>Set the gauges.</b> Set every Performance bar to 20%. Put the CO₂ marker on 8 for Easy or on 4 for Hard.','<b>Shuffle the decks.</b> Shuffle the question cards (keep the three levels apart), the bonus and malus cards, and the disaster cards. Put them next to the board.','<b>Choose a length and a first player.</b> Pick Normal or Express. The youngest player goes first, and play continues clockwise.'])+rtable(['Value','Starts at','Whose is it?'],[['Green Points',0,'Each player'],['Eco-Coins',0,'Each player'],['Performance bar','20%','Each player'],['CO₂ gauge','8 (Easy) or 4 (Hard)','Shared by all']]))+
-  rtab('f3','Your turn','<p>On your turn, do these three things in order.</p>'+rsteps(['<b>Roll and move.</b> Roll the die and move your pawn clockwise around the circuit. In Express mode, roll two dice and move by the total. Passing START does nothing.','<b>Resolve the tile you landed on.</b><br><b>Green tile.</b> The player on your left reads you a question of that level (in the app\'s automatic mode, the app asks). Right answer: take Green Points, and the same number of Eco-Coins. Wrong answer: you get nothing, and the CO₂ marker goes up by 1.<br><b>Bonus (+) or malus (−) tile.</b> Draw a card and do what it says.<br><b>Disaster tile (Hard side only).</b> Draw a disaster card. It ruins one of your own infrastructures, of the type named on the card. If you have none of that type, nothing is ruined and the CO₂ marker goes up by 1.','<b>Build or repair (only after a right answer).</b> Spend your Eco-Coins on one infrastructure, or repair a ruined one. Eco-Coins won from a Bonus card can wait for a later turn.'])+rtable(['Tile','Question','Green Points','Eco-Coins'],[['Light green','Easy',1,1],['Medium green','Intermediate',2,2],['Dark green','Hard',3,3]])+'<p><b>End of your turn.</b> Pass the die (or dice) to the player on your left. When every player has played once, the round is over.</p>')+
+  rtab('f3','Your turn','<p>On your turn, do these three things in order.</p>'+rsteps(['<b>Roll and move.</b> Roll the die and move your pawn clockwise around the circuit. In Express mode, roll two dice and move by the total. Passing START does nothing.','<b>Resolve the tile you landed on.</b><br><b>Green tile.</b> The player on your left reads you a question of that level (in the app\'s automatic mode, the app asks). Right answer: take Green Points, and the same number of Eco-Coins. Wrong answer: you get nothing, and the CO₂ marker goes up by 1.<br><b>Bonus (+) or malus (−) tile.</b> Draw a card and do what it says.<br><b>Disaster tile (Hard side only).</b> Draw a disaster card. It ruins one of your own infrastructures, of the type named on the card. If you have none of that type, nothing is ruined and the CO₂ marker goes up by 1.','<b>Build or repair (only after a right answer).</b> Spend your Eco-Coins on one infrastructure, or repair a ruined one. Eco-Coins won from a Bonus card can wait for a later turn.'])+rtable(['Tile','Question','Green Points','Eco-Coins'],[['Light green','Easy',1,1],['Medium green','Intermediate',2,2],['Dark green','Hard',3,3]])+'<p><b>Disaster at the end of the round (Easy board).</b> When every player has played, one disaster card hits one player, drawn at random (roll a die if you play on the real board). They ruin one of their infrastructures of the type named on the card, or lose 1 Eco-Coin. If they have none of that type, they are spared. In the app\'s Automatic and Full game modes, the app draws it for you.</p><p><b>End of your turn.</b> Pass the die (or dice) to the player on your left. When every player has played once, the round is over (on the Easy board, the round disaster strikes first).</p>')+
   rtab('f4','Cards','<p>Three decks, one for each kind of tile.</p><ul><li><b>Question cards (green tiles).</b> The player on your left reads the question. A right answer earns points and Eco-Coins.</li><li><b>Bonus and malus cards (+ and − tiles).</b> Most cards work right away. Read the card aloud, do what it says, then discard it. Cards marked <b>SAVE</b> can be kept: keep it face up in front of you and play it later, only during your own turn. If it targets another player, that player must follow it. <i>Team training</i> is a SAVE card: your next build costs 1 Eco-Coin less.</li><li><b>Disaster cards (! tiles, Hard side only).</b> Read the card aloud. It names a type of infrastructure, and it ruins one of your own infrastructures of that type. If you have several, you choose which one. If you have none of that type, nothing is ruined, and the CO₂ marker goes up by 1.</li></ul><p>Eco-Coins can never drop below 0. Coins won from a Bonus card don\'t let you build this turn: you can only build after a right answer.</p><div class="rbox"><b>A ruined infrastructure.</b> Flip the tile over. It stays on its space, and nobody can build there. Its effects stop: lower its owner\'s Performance by the tile\'s bonus, and if it was green, the CO₂ marker goes back up by the tile\'s CO₂ value. You can repair it on a later turn instead of building, and its effects count again.</div><p><b>Example.</b> Leo lands on a disaster tile. The card says: Solar panels are ruined. He owns two, so he chooses one and flips it. His Performance goes down by 4%, and the CO₂ marker goes up by 1.</p>')+
   rtab('f5','Build your city','<p>After a right answer, you may build, or repair a ruined infrastructure.</p>'+R_INFRA()+'<ul><li><b>Pay.</b> Spend the cost in Eco-Coins. If you can\'t afford it, you keep your coins and skip the build.</li><li><b>Stay connected.</b> Put the tile on an empty city space that touches your Base or one of your own infrastructures. A ruined infrastructure still counts as connected and keeps its space.</li><li><b>Apply the effects.</b> Move your Performance bar and the CO₂ marker right away. Performance can\'t go above 100%.</li><li><b>One build per turn.</b></li><li><b>Repair.</b> Instead of building, flip one of your ruined infrastructures back over. It is free, and it replaces your build for this turn. Your Performance goes back up, and a green one brings the CO₂ marker back down by its CO₂ value.</li></ul><p><b>Example.</b> Mia answers a medium question right: +2 Green Points, +2 Eco-Coins. She spends 2 on solar panels next to her Base. The CO₂ marker goes down by 1, and her Performance goes from 20% to 24%.</p>')+
   rtab('f6','End of a round','<p>A round ends when every player has played once. Then follow these two steps in order.</p>'+rsteps(['<b>The CO₂ rises.</b> Move the CO₂ marker up by 1.','<b>Check the end of the game.</b> Check the end condition of your mode. If the game is not over, start a new round.'])+'<div class="rbox red"><b>Red zone.</b> The moment the CO₂ marker reaches the red zone (17 on the Easy gauge, 9 on the Hard gauge), the game stops immediately and everybody loses. This is true at any time: after a wrong answer, a card, a build or a disaster, even in the middle of a turn.</div>'+rtable(['Gauge','Range','Start','Safe','Warning','Red zone'],[['Easy','0 to 20',8,'0 to 10','11 to 16','17 to 20'],['Hard','0 to 10',4,'0 to 5','6 to 8','9 and 10']]))+
@@ -1206,6 +1223,9 @@ function autoHtml(){
     body+='<div class="row"><span class="chip '+LV[S.tile].cls+'">'+LV[S.tile].label.toUpperCase()+'</span></div><h3>'+esc(q2.q)+'</h3><div class="opts">'+q2.o2.map(function(o,i){return '<div class="opt'+(i===q2.ai?' right':(i===a.idx?' wrong':''))+'">'+esc(o)+(i===q2.ai?' <b>(correct)</b>':'')+'</div>';}).join('')+'</div>'+
       '<div class="banner '+(a.ok?'win':'lose')+'" role="status"><b>'+(mine?'':esc(p.name)+': ')+(a.ok?'Right answer. +'+LV[S.tile].pts+' Green Points and +'+LV[S.tile].pts+' Eco-Coins.':'Wrong answer. No points, and CO₂ +1.')+'</b><br>'+esc(q2.why)+'</div>'+
       C('<div class="row">'+(a.ok?'<button class="btn" data-a="to-build">Build or repair</button><button class="btn sec" data-a="end-turn">End turn</button>':'<button class="btn" data-a="end-turn">End turn</button>')+'</div>')+(mine?'':'<p class="note" role="status">Waiting for '+esc(p.name)+' to continue…</p>');
+  }else if(ph==='event'){
+    var ev=S.card;
+    body+='<span class="chip c-disaster">DISASTER AT THE END OF THE ROUND</span><div class="card disaster"><h3>'+esc(ev.t)+'</h3><p>'+esc(ev.x)+'</p><p>'+(ev.area?'Hits the <b>'+esc(ev.area)+'</b> of the city: every infrastructure there is ruined (up to 5).':'Hits one player: <b>'+esc(ev.ty)+'</b>')+'</p><p>'+S.cardFx+'</p></div>'+C('<div class="row"><button class="btn" data-a="ev-ok">'+(S.lost?'See the result':'Continue')+'</button></div>')+(mine?'':'<p class="note" role="status">Waiting for '+esc(p.name)+'…</p>');
   }else if(ph==='card'){
     var c=S.card;
     if(c.kk==='disaster'){
@@ -1355,10 +1375,14 @@ function glBoardOk(){
 }
 function glEff(){return (GLS.mode==='board'&&!glBoardOk())?'panel':GLS.mode;}
 function glBoardVisible(){var r=glBoardOk();if(!r){return true;}var v=Math.min(r.bottom,window.innerHeight)-Math.max(r.top,0);return v>=Math.min(r.height*0.5,380);}
+function glRel(n){var o=[],k,br=glBoardOk(),sp=Math.max(0.12,br?1.5*Math.max(34,Math.min(58,Math.round(br.width*0.11)))/br.width:0.12);for(k=0;k<n;k++){o.push([0.5-(n>1?sp/2:0)+(n>1?k*sp:0)+(Math.random()-0.5)*0.05,(typeof V3!=='undefined'&&V3.live)?0.66+Math.random()*0.16:0.3+Math.random()*0.4]);}return o;}
+function glDS(){var r=(glEff()==='board')?glBoardOk():null;return r?Math.max(34,Math.min(58,Math.round(r.width*0.11))):58;}
 function glAnchor(n){
+  DS=glDS();
   var ph=document.getElementById('dicegl');if(!ph){return null;}
   var el=ph,w=n*GLW,h=92,pos=[],k;
-  if(glEff()==='board'&&GLS.rel&&GLS.rel.length>=n){
+  if(glEff()==='board'){
+    if(!GLS.rel||GLS.rel.length<n||GLS.relKey!==GLS.vals){GLS.rel=glRel(n);GLS.relKey=GLS.vals;}
     el=document.getElementById('board');var r=el.getBoundingClientRect();w=r.width;h=r.height;
     for(k=0;k<n;k++){pos.push({x:GLS.rel[k][0]*w,y:GLS.rel[k][1]*h});}
   }else{for(k=0;k<n;k++){pos.push({x:(k+.5)*GLW,y:86});}}
@@ -1408,7 +1432,7 @@ function glRoll(vals){
   function go(){
     var ph=document.getElementById('dicegl');if(!ph){GLS.animating=false;glDraw();return;}
     glOverlay();GLS.cv.style.display='';
-    if(eff==='board'){GLS.rel=[];for(k=0;k<n;k++){GLS.rel.push([0.34+Math.random()*0.32+(n>1?(k-0.5)*0.12:0),V3.live?0.66+Math.random()*0.16:0.3+Math.random()*0.4]);}}
+    if(eff==='board'){GLS.rel=glRel(n);GLS.relKey=GLS.vals;}
     var P1=glRest(n),P0=[],r0=ph.getBoundingClientRect();
     P1.forEach(function(p,i){
       if(eff==='panel'){P0.push({x:p.x,y:p.y});}
@@ -1429,7 +1453,7 @@ function glRoll(vals){
         var tk=t-d.dl,u=Math.max(0,Math.min(1,tk/M.T)),e1=1-Math.pow(1-u,M.pw),e2=1-Math.pow(1-u,2),m=1-Math.pow(1-u,eff==='panel'?1:2.3);
         var p1=tg[i],p0=P0[i];
         var gx=p0.x+(p1.x-p0.x)*m,gy=p0.y+(p1.y-p0.y)*m,h=0,sq=0;
-        M.arcs.forEach(function(a){if(tk>a[0]&&tk<a[1]){var v=(tk-a[0])/(a[1]-a[0]);h=4*a[2]*v*(1-v);}});
+        M.arcs.forEach(function(a){if(tk>a[0]&&tk<a[1]){var v=(tk-a[0])/(a[1]-a[0]);h=4*a[2]*v*(1-v)*(DS/58);}});
         M.arcs.forEach(function(a){var sv=Math.exp(-Math.pow((tk-a[1])/0.04,2));if(tk>a[1]-0.02&&tk<a[1]+0.2){sq=Math.max(sq,sv);}});
         var q=new T.Quaternion().setFromAxisAngle(d.A,d.ta*(1-e1));
         q.multiply(new T.Quaternion().setFromAxisAngle(d.B,d.tb*(1-e2)));
@@ -1728,10 +1752,71 @@ function doAnswer(idx){
   else{addCo2(1);log(esc(p.name)+' answered wrong: CO₂ +1.');var src=QUESTIONS[S.q.id],dk=S.decks[S.tile];if(src&&dk){dk.splice(rnd(dk.length),0,src);}}
   S.phase='feedback';say(ok?'Right answer':'Wrong answer');
 }
+var AREA_DIS=[
+ {t:'Flood',x:'Heavy rain floods a whole district.'},
+ {t:'Wildfire',x:'A fire spreads through one side of the city.'},
+ {t:'Earthquake',x:'The ground shakes under a district.'},
+ {t:'Tornado',x:'A tornado tears through the city.'},
+ {t:'Landslide',x:'The ground slips and buries a district.'}
+];
+var AREA_ZONES=[
+ {n:'top left',x:130,y:150},{n:'top right',x:310,y:150},{n:'bottom left',x:130,y:310},{n:'bottom right',x:310,y:310},{n:'center',x:220,y:230}
+];
+function areaDisaster(){
+  var dc=pick(AREA_DIS),z=pick(AREA_ZONES),hit=[],gg=(S.mode==='full')?GEO[S.boardKey]:null,by={},out=[],lst=[];
+  if(gg){
+    S.cells.forEach(function(c,ix){
+      var g=gg.cells[ix];
+      if(g&&INFRA[c.kind]&&!c.ruined&&Math.hypot(g.x-z.x,g.y-z.y)<=60){hit.push({ix:ix,d:Math.hypot(g.x-z.x,g.y-z.y)});}
+    });
+    hit.sort(function(a,b){return a.d-b.d;});hit=hit.slice(0,5).map(function(h){return h.ix;});
+  }else{
+    S.cells.forEach(function(c,ix){if(INFRA[c.kind]&&!c.ruined){lst.push(ix);}});
+    hit=shuffle(lst).slice(0,Math.min(3,lst.length));
+  }
+  hit.forEach(function(ix){
+    var c=S.cells[ix],o=c.owner,nm=INFRA[c.kind].name.toLowerCase();
+    ruinCell(ix);
+    (by[o]=by[o]||[]).push(nm);
+  });
+  Object.keys(by).forEach(function(o){out.push('<b>'+esc(S.players[o].name)+':</b> ruins '+by[o].join(', ')+'.');});
+  S.card={kk:'turnev',t:dc.t,x:dc.x,area:z.n};
+  S.cardFx=out.length?out.join('<br>'):'Nothing is built there, so nothing is ruined.';
+  S.phase='event';
+  log('End of round '+S.round+', area disaster in the '+z.n+' of the city: '+esc(dc.t)+'. '+(hit.length?hit.length+' infrastructure'+(hit.length>1?'s':'')+' ruined.':'Nothing was built there.'));
+  render();say('Disaster: '+dc.t);
+}
+function turnDisaster(){
+  if(Math.random()<0.3){areaDisaster();return;}
+  var dc=draw('tdis'),out=[];
+  S.card={kk:'turnev',t:dc.t,x:dc.x,ty:dc.type?INFRA[dc.type].name:'Eco-Coins'};
+  var tg=rnd(S.players.length);
+  S.players.forEach(function(p,pi){
+    if(pi!==tg){return;}
+    var cand=[],r;
+    if(dc.type){
+      S.cells.forEach(function(c,ix){if(c.owner===pi&&c.kind===dc.type&&!c.ruined){cand.push(ix);}});
+      r=cand.length?ruinCell(pick(cand)).replace(/^It ruins your/,'Ruins their'):'Spared (no '+INFRA[dc.type].name.toLowerCase()+').';
+    }else{
+      r=p.ec>0?'Loses 1 Eco-Coin.':'No Eco-Coins, loses nothing.';
+      p.ec=Math.max(0,p.ec-1);
+    }
+    out.push('<b>'+esc(p.name)+':</b> '+r);
+  });
+  S.cardFx=out.join('<br>');S.phase='event';
+  log('End of round '+S.round+', disaster for '+esc(S.players[tg].name)+': '+esc(dc.t)+'.');
+  render();say('Disaster: '+dc.t);
+}
 function endTurn(){
   S.sel=null;S.msg='';S.dice=null;
   if(S.lost){finish();return;}
   if(S.full){finish();return;}
+  if(S.decks&&S.decks.tdis&&S.boardKey==='easy'&&S.phase!=='event'&&S.cur===S.players.length-1){turnDisaster();return;}
+  advanceTurn();
+}
+function advanceTurn(){
+  S.card=null;
+  if(S.lost){finish();return;}
   S.cur++;
   if(S.cur>=S.players.length){S.cur=0;endRound();return;}
   S.phase='roll';render();say(cur().name+', your turn');
@@ -1821,7 +1906,7 @@ function endHtml(){
 /* online play: host-authoritative rooms over WebRTC (PeerJS) */
 var ICE=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turns:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
 var NET={role:'off',peer:null,conn:null,pl:[],code:'',seat:0,lobby:null,msg:'',busy:false,form:{name:'',code:''},seq:0,timer:null,wake:null,arm:false,lost:false,off:[],copied:false,sw:false,want:null,retry:null,joinLink:false};
-var FWD={roll:1,answer:1,'to-build':1,pick:1,play:1,cell:1,'end-turn':1,'next-round':1};
+var FWD={'ev-ok':1,roll:1,answer:1,'to-build':1,pick:1,play:1,cell:1,'end-turn':1,'next-round':1};
 try{NET.form.name=localStorage.getItem('gb-name')||'';}catch(e){}
 (function(){var m=/[?&]room=([A-Za-z]{4})/.exec(location.search||'');if(m){NET.form.code=m[1].toUpperCase();NET.joinLink=true;return;}try{var r=sessionStorage.getItem('gb-room');if(r){NET.form.code=r;NET.joinLink=true;}}catch(e){}})();
 function netCid(){
@@ -1845,12 +1930,13 @@ function netClose(){
   try{NET.pl.forEach(function(p){if(p.conn){p.conn.close();}});}catch(e){}
   try{if(NET.peer){NET.peer.destroy();}}catch(e){}
   try{if(NET.wake){NET.wake.release();}}catch(e){}
-  NET.chat=[];CH.unread=0;NET.peer=null;NET.conn=null;NET.pl=[];NET.role='off';NET.code='';NET.lobby=null;NET.lost=false;NET.off=[];NET.wake=null;NET.arm=false;
+  relayHostStop();NET.via=null;NET.chat=[];CH.unread=0;NET.peer=null;NET.conn=null;NET.pl=[];NET.role='off';NET.code='';NET.lobby=null;NET.lost=false;NET.off=[];NET.wake=null;NET.arm=false;
 }
 function netLeave(){
   try{sessionStorage.removeItem('gb-room');}catch(e){}
   if(NET.role==='host'){NET.pl.forEach(function(p){try{if(p.conn&&p.conn.open){p.conn.send({t:'closed'});}}catch(e){}});}
   var wasOnline=S&&S.online;
+  var rl0=NET.rl;NET.rl=null;NET.rlc={};if(rl0){setTimeout(function(){clearInterval(rl0.hb);try{rl0.client.end(true);}catch(e){}},600);}
   var peer=NET.peer;NET.peer=null;
   setTimeout(function(){try{if(peer){peer.destroy();}}catch(e){}},300);
   netClose();F.online=false;
@@ -1858,34 +1944,148 @@ function netLeave(){
 }
 function keepAwake(){try{if(navigator.wakeLock){navigator.wakeLock.request('screen').then(function(l){NET.wake=l;}).catch(function(){});}}catch(e){}}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&NET.role==='host'){keepAwake();}});
+/* relay fallback: when a direct (WebRTC) link is impossible, messages go through a public MQTT broker over WebSocket */
+var RB=window.GB_RELAY||['wss://mqtt.eclipseprojects.io:443/mqtt','wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt'];
+NET.rl=null;NET.rlc={};NET.via=null;
+function rOk(){return typeof mqtt!=='undefined'&&mqtt&&typeof mqtt.connect==='function';}
+function rOrder(code){var h=0,i;for(i=0;i<code.length;i++){h+=code.charCodeAt(i);}var k=h%RB.length;return RB.slice(k).concat(RB.slice(0,k));}
+function rConnect(url,ms,cb){
+  var c,done=false,t;
+  try{c=mqtt.connect(url,{clientId:'gb'+Math.random().toString(36).slice(2,12),clean:true,connectTimeout:ms,reconnectPeriod:0,keepalive:25});}catch(e){cb(e);return;}
+  t=setTimeout(function(){if(!done){done=true;try{c.end(true);}catch(e){}cb(new Error('timeout'));}},ms+500);
+  c.on('connect',function(){if(done){return;}done=true;clearTimeout(t);cb(null,c);});
+  c.on('error',function(){if(done){return;}done=true;clearTimeout(t);try{c.end(true);}catch(e){}cb(new Error('error'));});
+  c.on('close',function(){if(!done){done=true;clearTimeout(t);cb(new Error('closed'));}});
+}
+function rMsg(buf){try{var o=JSON.parse(buf.toString());return o&&typeof o==='object'?o:null;}catch(e){return null;}}
+/* host side: one broker connection, one pseudo-connection per guest */
+function relayHostStart(code,done){
+  if(!rOk()){done(false);return;}
+  var list=rOrder(code),i=0;
+  (function next(){
+    if(NET.role==='off'&&NET.code&&NET.code!==code){done(false);return;}
+    if(i>=list.length){done(false);return;}
+    var url=list[i++];
+    rConnect(url,5000,function(err,c){
+      if(err){next();return;}
+      var base='gbyte-v1/'+code,rl={client:c,url:url,base:base,hb:null,dead:false};
+      c.subscribe(base+'/h',{qos:1},function(e2){
+        if(e2){try{c.end(true);}catch(x){}next();return;}
+        if(NET.rl){try{NET.rl.client.end(true);clearInterval(NET.rl.hb);}catch(x){}}
+        NET.rl=rl;
+        c.on('message',function(tp,buf){var o=rMsg(buf);if(!o||!o.c||!o.m||typeof o.m!=='object'){return;}relayHostIn(String(o.c).slice(0,16),o.m);});
+        c.on('close',function(){
+          if(NET.rl!==rl){return;}
+          clearInterval(rl.hb);NET.rl=null;
+          setTimeout(function(){if(NET.role==='host'&&NET.code===code&&!NET.rl){relayHostStart(code,function(){});}},3000);
+        });
+        rl.hb=setInterval(relayHostTick,5000);
+        done(true);
+      });
+    });
+  })();
+}
+function relayMk(cid){
+  var conn={relay:true,open:true,cid:cid,last:Date.now(),_h:{}};
+  conn.send=function(m){var r=NET.rl;if(!r||!conn.open){return;}try{r.client.publish(r.base+'/g/'+cid,JSON.stringify(m),{qos:1});}catch(e){}};
+  conn.close=function(){conn.open=false;};
+  conn.on=function(ev,fn){conn._h[ev]=fn;};
+  return conn;
+}
+function relayHostIn(cid,m){
+  var conn=NET.rlc[cid];
+  if(!conn||!conn.open){conn=relayMk(cid);NET.rlc[cid]=conn;hostConn(conn);}
+  conn.last=Date.now();
+  if(m.t==='ping'){return;}
+  if(conn._h.data){conn._h.data(m);}
+}
+function relayHostTick(){
+  var now=Date.now(),k;
+  for(k in NET.rlc){
+    var c=NET.rlc[k];
+    if(!c.open){delete NET.rlc[k];continue;}
+    if(now-c.last>22000){c.open=false;delete NET.rlc[k];if(c._h.close){c._h.close();}}
+    else{c.send({t:'hping'});}
+  }
+}
+function relayHostStop(){
+  var r=NET.rl;NET.rl=null;NET.rlc={};
+  if(r){clearInterval(r.hb);try{r.client.end(true);}catch(e){}}
+}
+/* guest side: try the brokers in order until the host answers */
+function relayGuest(code,nm,cb){
+  var rg={stop:false,client:null},list=rOrder(code),i=0,cid=netCid();
+  (function next(){
+    if(rg.stop){return;}
+    if(i>=list.length){cb.fail();return;}
+    var url=list[i++];
+    rConnect(url,5000,function(err,c){
+      if(rg.stop){if(c){try{c.end(true);}catch(e){}}return;}
+      if(err){next();return;}
+      var base='gbyte-v1/'+code,got=false,wait=null,hb=null,wd=null,rc=null,last=Date.now();
+      rg.client=c;
+      function give(){
+        if(got){return;}got=true;clearTimeout(wait);
+        rc={relay:true,open:true};
+        rc.send=function(m){if(!rc.open){return;}try{c.publish(base+'/h',JSON.stringify({c:cid,m:m}),{qos:1});}catch(e){}};
+        rc.close=function(){rc.open=false;clearInterval(hb);clearInterval(wd);try{c.end(true);}catch(e){}};
+        if(!cb.first(rc)){rc.close();return;}
+        hb=setInterval(function(){rc.send({t:'ping'});},6000);
+        wd=setInterval(function(){if(rc.open&&Date.now()-last>22000){var o=rc;o.close();cb.close(o);}},3000);
+      }
+      c.on('message',function(tp,buf){var o=rMsg(buf);if(!o){return;}last=Date.now();if(!got){give();if(!got||!rc||!rc.open){return;}}cb.data(o);});
+      c.on('close',function(){if(got&&rc&&rc.open){var o=rc;o.close();cb.close(o);}});
+      c.subscribe(base+'/g/'+cid,{qos:1},function(e2){
+        if(e2){try{c.end(true);}catch(x){}next();return;}
+        try{c.publish(base+'/h',JSON.stringify({c:cid,m:{t:'hello',cid:cid,name:nm}}),{qos:1});}catch(x){}
+        wait=setTimeout(function(){if(!got){try{c.end(true);}catch(x){}rg.client=null;next();}},4500);
+      });
+    });
+  })();
+  return rg;
+}
 /* host */
 function netHost(){
   if(NET.busy){return;}
   var nm=cleanName(NET.form.name);
   if(!nm){NET.msg='Enter your name first.';render();return;}
-  if(typeof Peer==='undefined'){NET.msg='The online library could not load. Check your connection and reload the page.';render();return;}
+  if(typeof Peer==='undefined'&&!rOk()){NET.msg='The online library could not load. Check your connection and reload the page.';render();return;}
   try{localStorage.setItem('gb-name',nm);}catch(e){}
   netClose();NET.busy=true;NET.msg='';render();
   var tries=0;
+  function become(code){
+    NET.role='host';NET.code=code;NET.seat=0;NET.busy=false;NET.msg='';
+    NET.pl=[{cid:netCid(),name:nm,conn:null,on:true}];
+    F.online=true;F.mode='full';screen='lobby';keepAwake();render();
+  }
   (function open(){
-    var code=randCode(),p,done=false;
-    try{p=new Peer('gbyte-'+code,netOpts());}catch(e){netFail('Could not start the online service.');return;}
+    var code=randCode(),p,done=false,to;
+    function viaRelayOnly(){
+      if(done){return;}done=true;clearTimeout(to);
+      try{if(p){p.destroy();}}catch(e){}
+      NET.peer=null;
+      if(!rOk()){netFail('Cannot reach the online service. This page may be blocked, or your network does not allow it.');return;}
+      NET.code=code;
+      relayHostStart(code,function(ok){
+        if(!ok){netFail('Cannot reach the online service. This page may be blocked, or your network does not allow it.');return;}
+        become(code);
+      });
+    }
+    try{p=new Peer('gbyte-'+code,netOpts());}catch(e){p=null;viaRelayOnly();return;}
     NET.peer=p;
-    var to=setTimeout(function(){if(!done){done=true;netFail('Cannot reach the online service. This page may be blocked, or your network does not allow it.');}},9000);
+    to=setTimeout(viaRelayOnly,9000);
     p.on('open',function(){
       if(done){return;}done=true;clearTimeout(to);
-      NET.role='host';NET.code=code;NET.seat=0;NET.busy=false;NET.msg='';
-      NET.pl=[{cid:netCid(),name:nm,conn:null,on:true}];
-      F.online=true;F.mode='full';screen='lobby';keepAwake();render();
+      become(code);
+      if(rOk()){relayHostStart(code,function(){});}
     });
     p.on('connection',hostConn);
     p.on('disconnected',function(){try{p.reconnect();}catch(e){}});
     p.on('error',function(e){
       if(NET.role==='host'){return;}
       if(done){return;}
-      clearTimeout(to);
-      if(e&&e.type==='unavailable-id'&&tries++<5){done=true;try{p.destroy();}catch(x){}open();return;}
-      done=true;netFail(netErr(e));
+      if(e&&e.type==='unavailable-id'&&tries++<5){done=true;clearTimeout(to);try{p.destroy();}catch(x){}open();return;}
+      viaRelayOnly();
     });
   })();
 }
@@ -1904,6 +2104,12 @@ function hostConn(conn){
 function hostMsg(conn,m){
   if(!m||typeof m!=='object'){return;}
   var ix=-1;NET.pl.forEach(function(p,i){if(p.conn===conn){ix=i;}});
+  if(m.t==='ping'){return;}
+  if(m.t==='via'){
+    var vc=String(m.cid||'').slice(0,16);
+    NET.pl.forEach(function(p){if(p.cid===vc){p.conn=conn;p.on=true;}});
+    render();netPush(true);return;
+  }
   if(m.t==='hello'){
     var cid=String(m.cid||'').slice(0,16),nm=cleanName(m.name)||'Player',known=-1;
     NET.pl.forEach(function(p,i){if(p.cid===cid){known=i;}});
@@ -1951,33 +2157,76 @@ function netJoin(){
   var nm=cleanName(NET.form.name),code=String(NET.form.code||'').toUpperCase().replace(/[^A-Z]/g,'');
   if(!nm){NET.msg='Enter your name first.';render();return;}
   if(code.length!==4){NET.msg='Enter the 4-letter room code.';render();return;}
-  if(typeof Peer==='undefined'){NET.msg='The online library could not load. Check your connection and reload the page.';render();return;}
+  if(typeof Peer==='undefined'&&!rOk()){NET.msg='The online library could not load. Check your connection and reload the page.';render();return;}
   try{localStorage.setItem('gb-name',nm);}catch(e){}
   netClose();NET.busy=true;NET.msg='';NET.code=code;render();
   netConnect(code,nm,false);
 }
 function netConnect(code,nm,silent){
-  var p,done=false;
-  try{p=new Peer(netOpts());}catch(e){if(!silent){netFail('Could not start the online service.');}return;}
-  NET.peer=p;NET.role='guest';
-  function bad(msg){if(done){return;}done=true;if(silent){netRetry(code,nm);}else{netFail(msg);}}
-  var to=setTimeout(function(){bad('Cannot reach the room. Check the code, and ask the host to keep the page open.');},11000);
-  p.on('error',function(e){clearTimeout(to);bad(netErr(e));});
+  var p=null,done=false,locked=null,rg=null,rt=null,to,c=null,p2pDead=false,relayDead=false,canRelay=rOk(),preferRelay=canRelay&&NET.via==='relay';
+  NET.role='guest';
+  function bad(msg){
+    if(done){return;}done=true;clearTimeout(to);clearTimeout(rt);
+    if(rg){rg.stop=true;try{if(rg.client){rg.client.end(true);}}catch(e){}rg=null;}
+    if(silent){netRetry(code,nm);}else{netFail(msg);}
+  }
+  function lock(kind){locked=kind;done=true;clearTimeout(to);clearTimeout(rt);}
+  function lostLink(link){
+    if(NET.role!=='guest'||NET.conn!==link){return;}
+    if(S&&S.online&&screen!=='end'||screen==='lobby'){NET.lost=true;render();netRetry(code,nm);}
+    else{netFail('Connection to the room was lost.');}
+  }
+  var MSG='Cannot reach the room. Check the code, and ask the host to keep the page open.';
+  function startRelay(){
+    if(locked||rg||!canRelay||done){return;}
+    rg=relayGuest(code,nm,{
+      first:function(rcn){
+        if(locked){return false;}
+        lock('relay');NET.via='relay';NET.conn=rcn;
+        if(p){var pp=p;p=null;NET.peer=null;setTimeout(function(){try{pp.destroy();}catch(e){}},50);}
+        rcn.send({t:'via',cid:netCid()});
+        return true;
+      },
+      data:function(m){guestMsg(m);},
+      close:function(rcn){lostLink(rcn);},
+      fail:function(){relayDead=true;rg=null;if(p2pDead||!p){bad(MSG);}}
+    });
+  }
+  to=setTimeout(function(){bad(MSG);},canRelay?28000:11000);
+  if(preferRelay){startRelay();return;}
+  if(typeof Peer==='undefined'){if(canRelay){startRelay();}else{bad('The online library could not load.');}return;}
+  try{p=new Peer(netOpts());}catch(e){p=null;if(canRelay){startRelay();}else{bad('Could not start the online service.');}return;}
+  NET.peer=p;
+  if(canRelay){rt=setTimeout(startRelay,4500);}
+  p.on('error',function(e){
+    if(locked){return;}
+    p2pDead=true;
+    if(canRelay){startRelay();if(relayDead){bad(netErr(e));}}
+    else{bad(netErr(e));}
+  });
   p.on('open',function(){
-    var c=p.connect('gbyte-'+code,{reliable:true});NET.conn=c;
+    c=p.connect('gbyte-'+code,{reliable:true});NET.conn=c;
     c.on('open',function(){c.send({t:'hello',cid:netCid(),name:nm});});
-    c.on('data',function(m){if(!done){done=true;clearTimeout(to);}guestMsg(m);});
+    c.on('data',function(m){
+      if(locked==='relay'){return;}
+      if(!locked){
+        lock('p2p');NET.via='p2p';
+        if(rg){rg.stop=true;try{if(rg.client){rg.client.end(true);}}catch(e){}rg=null;}
+        try{c.send({t:'via',cid:netCid()});}catch(e){}
+      }
+      guestMsg(m);
+    });
     c.on('close',function(){
-      clearTimeout(to);
+      if(locked==='relay'){return;}
+      if(!locked){p2pDead=true;if(canRelay){startRelay();}return;}
       if(NET.role!=='guest'||NET.peer!==p){return;}
-      if(S&&S.online&&screen!=='end'||screen==='lobby'){NET.lost=true;render();netRetry(code,nm);}
-      else{netFail('Connection to the room was lost.');}
+      lostLink(c);
     });
   });
 }
 function netRetry(code,nm){
   if(NET.retry){return;}
-  NET.tries=(NET.tries||0)+1;if(NET.tries>12){netFail('Could not reconnect to the room.');return;}
+  NET.tries=(NET.tries||0)+1;if(NET.tries===3){NET.via=null;}if(NET.tries>12){netFail('Could not reconnect to the room.');return;}
   NET.retry=setTimeout(function(){
     NET.retry=null;
     if(NET.role!=='guest'&&!NET.lost){return;}
@@ -1987,6 +2236,7 @@ function netRetry(code,nm){
 }
 function guestMsg(m){
   if(!m||typeof m!=='object'){return;}
+  if(m.t==='hping'){return;}
   if(m.t==='err'){netFail(m.msg||'Could not join.');return;}
   if(m.t==='closed'){try{sessionStorage.removeItem('gb-room');}catch(e){}netClose();F.online=false;S=null;NET.msg='The host closed the room.';screen='online';render();return;}
   if(m.t==='chat'&&m.m){chatAdd({n:m.m.n|0,name:String(m.m.name||''),txt:String(m.m.txt||''),id:m.m.id});return;}
@@ -2028,6 +2278,7 @@ function onlineHtml(){
   '<section class="panel"><label class="lab">Your name<input type="text" maxlength="16" data-nf="name" value="'+esc(f.name)+'" autocomplete="off" placeholder="Your name"></label></section>'+
   '<div class="onl"><section class="panel stack"><h3>Create a room</h3><p class="muted">You are the host. You choose the board and start the game. Keep this page open while you play.</p><div class="row"><button class="btn big" data-a="net-host" aria-disabled="'+b+'">Create a room</button></div></section>'+
   '<section class="panel stack"><h3>Join a room</h3><label class="lab">Room code<input type="text" class="codein" maxlength="4" data-nf="code" value="'+esc(f.code)+'" autocomplete="off" autocapitalize="characters" placeholder="ABCD"></label><div class="row"><button class="btn big" data-a="net-join" aria-disabled="'+b+'">Join the room</button></div></section></div>'+
+  '<p class="note">Players connect directly when they can. On a network that blocks this (school Wi-Fi, mobile data, a shared connection), the game switches by itself to a public relay server, which can take a few seconds. Don\'t share personal information in the chat.</p>'+
   '<div class="row"><button class="btn sec" data-a="home">Back</button></div></div>';
 }
 function lobbyHtml(){
@@ -2171,6 +2422,7 @@ function censor(txt){
   }
   return out;
 }
+window.GB_NET=NET;
 var CH={open:false,unread:0,built:false,ids:0};
 NET.chat=[];
 function chatOn(){return NET.role!=='off'&&(screen==='lobby'||screen==='game'||screen==='end');}
@@ -2233,7 +2485,7 @@ function chatHost(seat,txt){
   NET.pl.forEach(function(q,i){if(i!==seat||true){try{if(q.conn&&q.conn.open&&i!==0){q.conn.send({t:'chat',m:m});}}catch(e){}}});
 }
 /* events */
-var TURNACT={roll:['roll'],answer:['question'],'to-build':['feedback'],pick:['build'],play:['roll','rest','feedback','card','done','build'],cell:['build','dpick'],'end-turn':['rest','feedback','card','done','build']};
+var TURNACT={roll:['roll'],answer:['question'],'to-build':['feedback'],pick:['build'],play:['roll','rest','feedback','card','done','build'],cell:['build','dpick'],'end-turn':['rest','feedback','card','done','build'],'ev-ok':['event']};
 function act(a,d,rs){
   if((a==='home'||a==='landing')&&NET.role!=='off'){
     if(screen==='game'&&!NET.arm){NET.arm=true;render();setTimeout(function(){if(NET.arm){NET.arm=false;render();}},3500);return;}
@@ -2251,7 +2503,7 @@ function act(a,d,rs){
   }
   if(S&&S.online&&a==='next-round'&&S.phase!=='round'){return;}
   if(S&&S.online&&a==='again'&&NET.role!=='host'){return;}
-  if(a==='skip'){if(NET.role==='host'&&S&&S.online){stopMove();S.sel=null;if(S.phase==='round'){nextRound();}else{endTurn();}}return;}
+  if(a==='skip'){if(NET.role==='host'&&S&&S.online){stopMove();S.sel=null;if(S.phase==='round'){nextRound();}else if(S.phase==='event'){advanceTurn();}else{endTurn();}}return;}
   if(a==='home'||a==='landing'||a==='enter'||a==='mode'||a==='start'||a==='again'){stopMove();}
   if(a==='landing'){logoLiquid(function(){screen='landing';render();},true);return;}
   if(a==='enter'){logoLiquid(function(){screen=NET.joinLink?'online':'home';NET.joinLink=false;render();},false);return;}
@@ -2295,6 +2547,7 @@ function act(a,d,rs){
   else if(a==='play'){playCard(+d.idx,+d.i);}
   else if(a==='cell'){placeCell(+d.i);}
   else if(a==='end-turn'){endTurn();}
+  else if(a==='ev-ok'){if(S.phase==='event'){advanceTurn();}}
   else if(a==='next-round'){nextRound();}
 }
 app.addEventListener('click',function(e){
