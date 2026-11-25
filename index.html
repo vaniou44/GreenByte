@@ -170,6 +170,17 @@ input[type=text],select{font:inherit;min-height:44px;padding:8px 12px;border-rad
 .inf small{color:var(--muted);font-size:14px}
 svg.city{width:100%;height:auto;display:block;max-width:680px;margin:0 auto}
 .hexcell{cursor:default}
+.city .tile .glow,.city .tile .ring{pointer-events:none;opacity:0;transform-box:fill-box;transform-origin:50% 50%}
+.city .tile .glow{fill:#FFD23F}
+.city .tile .ring{fill:none;stroke:#FFD23F;stroke-width:5}
+@media (prefers-reduced-motion:no-preference){
+.city .tile.land{transform-box:fill-box;transform-origin:50% 100%;animation:tsq .75s cubic-bezier(.3,.7,.4,1) var(--ad,0s) both}
+.city .tile.land .glow{animation:tglow .8s ease-out var(--ad,0s) both}
+.city .tile.land .ring{animation:tring .85s ease-out var(--ad,0s) both}
+}
+@keyframes tsq{0%{transform:scale(1,1)}20%{transform:scale(1.07,.74)}55%{transform:scale(.985,1.07)}100%{transform:scale(1,1)}}
+@keyframes tglow{0%{opacity:.85}100%{opacity:0}}
+@keyframes tring{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.75)}}
 /* disaster animations */
 #dfx{position:fixed;inset:0;z-index:9500;pointer-events:none;overflow:hidden;opacity:1;transition:opacity .6s}
 #dfx.out{opacity:0}
@@ -404,7 +415,7 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
 @media(max-width:420px){.seg.small{gap:8px}.seg.small label{padding:10px 8px}.seg.small label b{font-size:15px}}
 #mas{overflow:hidden;position:fixed;inset:0;z-index:70;background:rgba(60,60,60,.16);-webkit-backdrop-filter:grayscale(.35) blur(7px);backdrop-filter:grayscale(.35) blur(7px);opacity:0;transition:opacity .35s}
 #mas.on{opacity:1}
-#mas .mbox{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:row-reverse;align-items:flex-end;gap:6px;max-width:min(560px,calc(100vw - 24px));transform:translateX(130%);transition:transform .6s cubic-bezier(.2,.9,.3,1.15)}
+#mas .mbox{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:max(12px,env(safe-area-inset-bottom,0px));display:flex;flex-direction:row-reverse;align-items:flex-end;gap:6px;max-width:min(680px,calc(100vw - 24px));transform:translateX(130%);transition:transform .6s cubic-bezier(.2,.9,.3,1.15)}
 #mas.on .mbox{transform:none}
 #mas.off .mbox{transform:translateX(130%);transition:transform .45s ease-in}
 #mas .mchar{flex:0 0 auto;width:185px;height:auto}
@@ -414,12 +425,12 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
 #mas .mbub::after{content:"";position:absolute;left:-9px;bottom:14px;width:16px;height:16px;background:var(--surface);border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:rotate(45deg)}
 #mas .mtx{margin:0;font-size:1.05rem;line-height:1.4;font-weight:700}
 #mas .mskip{display:block;margin:10px 0 0 auto;background:none;border:0;padding:4px 6px;font:inherit;font-size:.85rem;font-weight:700;color:var(--muted);text-decoration:underline;cursor:pointer;transition:opacity .3s}
-#mas .mskip.gone{opacity:0;pointer-events:none}
+#mas .mskip.gone{opacity:0;pointer-events:none;height:0;margin:0;padding:0;overflow:hidden;visibility:hidden}
 #mas .mskip:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
 #mas .mbtnw{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s ease}
 #mas .mbtnw.show{grid-template-rows:1fr}
 #mas .mbtnw>div{overflow:hidden;min-height:0}
-#mas .mbtns{display:flex;flex-wrap:wrap;gap:8px;padding:12px 4px 4px;opacity:0;transform:translateY(6px);transition:opacity .35s .1s,transform .35s .1s}
+#mas .mbtns{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 4px 4px;opacity:0;transform:translateY(6px);transition:opacity .35s .1s,transform .35s .1s}
 #mas .mbtnw.show .mbtns{opacity:1;transform:none}
 #mas .mtx{transition:opacity .28s}
 #mas .mtx.fo{opacity:0}
@@ -427,7 +438,8 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
 #mas .mtx .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #mas .mcur{display:inline-block;width:2px;height:1em;background:currentColor;vertical-align:-.15em;margin-left:1px;animation:mblink .8s steps(2) infinite}
 @keyframes mblink{50%{opacity:0}}
-#mas .mbtns .btn{min-height:44px}
+#mas .mbtns .btn{min-height:44px;padding-left:16px;padding-right:16px;white-space:nowrap}
+@media (max-width:480px){#mas .mbtns{gap:6px;padding-left:0;padding-right:0;flex-wrap:nowrap}#mas .mbtns .btn{padding-left:10px;padding-right:10px;font-size:.88rem;flex:0 1 auto}}
 @media (max-width:520px){
   #mas .mbox{flex-direction:column;align-items:flex-end;gap:0;left:max(12px,env(safe-area-inset-left,0px));max-width:none}
   #mas .mchar{width:146px;margin-top:-4px}
@@ -824,7 +836,8 @@ function boardSvg(){
   s+='<rect x="1" y="1" width="'+(W-2)+'" height="'+(H-2)+'" rx="18" fill="var(--surface2)" stroke="var(--edge)" stroke-width="3"/>';
   s+='<g aria-hidden="true">';
   S.track.forEach(function(t,i){
-    var q=g.tiles[i],st=TSTYLE[t],x,y;
+    var q=g.tiles[i],st=TSTYLE[t],x,y,ael=(ARR.k===i&&ARR.t>0)?(performance.now()-ARR.t)/1000:99;
+    s+='<g class="tile'+(ael<0.9?' land':'')+'" data-k="'+i+'"'+(ael<0.9?' style="--ad:-'+ael.toFixed(3)+'s"':'')+'>';
     if(g.sq){
       x=q.x-TILE/2;y=q.y-TILE/2;
       s+='<rect x="'+(x+4)+'" y="'+(y+7)+'" width="'+(TILE-8)+'" height="'+(TILE-8)+'" rx="11" fill="var(--edge)"/>';
@@ -838,6 +851,8 @@ function boardSvg(){
       s+='<text x="'+q.x+'" y="'+(q.y+17)+'" text-anchor="middle" font-size="11" font-weight="700" fill="'+st[1]+'" fill-opacity=".9" font-family="Fredoka,Nunito,sans-serif">'+st[2]+'</text>';
       if(i===0){s+='<text x="'+q.x+'" y="'+(q.y-g.dr-6)+'" text-anchor="middle" font-size="9" font-weight="700" fill="var(--ink)" font-family="Fredoka,Nunito,sans-serif">START ▾</text>';}
     }
+    s+=g.sq?'<rect class="glow" x="'+(x+4)+'" y="'+(y+4)+'" width="'+(TILE-8)+'" height="'+(TILE-8)+'" rx="11"/><rect class="ring" x="'+(x+4)+'" y="'+(y+4)+'" width="'+(TILE-8)+'" height="'+(TILE-8)+'" rx="11"/>':'<polygon class="glow" points="'+pts+'"/><polygon class="ring" points="'+pts+'"/>';
+    s+='</g>';
   });
   s+='</g><g>';
   var hitSet=hitCells();
@@ -925,7 +940,7 @@ function decal(tex,w,h,x,y,z){
 function v3Build(){
   var T=V3.T,g=geo(),root=V3.root,i;
   while(root.children.length){root.remove(root.children[0]);}
-  V3.cellM=[];V3.hl=null;V3.hlm=[];V3.vk='';V3.key=S.boardKey;V3.theme=document.documentElement.getAttribute('data-theme');
+  V3.cellM=[];V3.tileM=[];V3.tileD=[];V3.hl=null;V3.hlm=[];V3.vk='';V3.key=S.boardKey;V3.theme=document.documentElement.getAttribute('data-theme');
   var W=g.W/US,H=g.H/US;
   var slabG=prism(rrShape(W+0.5,H+0.5,0.8),SLAB-0.1),slab=new T.Mesh(slabG,tmat(cssv('--surface2','#EDE5D2')));slab.add(outl(slabG,1.012,1.1));root.add(slab);
   var cols={light:cssv('--light','#B7E4A8'),medium:cssv('--mid','#4CAF6A'),dark:cssv('--dark','#1F6B3A'),bonus:cssv('--bonus','#F2C14E'),malus:cssv('--malus','#F08A5D'),disaster:cssv('--disaster','#A93226'),start:cssv('--surface','#FFFCF5')};
@@ -934,8 +949,8 @@ function v3Build(){
   var cx=g.W/2,cy=g.H/2,R=g.dr/US-0.02;
   g.tiles.forEach(function(t,k){
     var geoT=g.sq?prism(rrShape((TILE-8)/US,(TILE-8)/US,0.18),RH):prism(hexShape(R-0.05),RH);
-    var m=new T.Mesh(geoT,tmat(cols[t.t]));m.position.set((t.x-cx)/US,SLAB,(t.y-cy)/US);m.add(outl(geoT,1.1,1.06));root.add(m);
-    if(sym[t.t]){root.add(decal(symTex(sym[t.t],tcol[t.t]),0.62,0.62,m.position.x,RTOP+0.006,m.position.z));}
+    var m=new T.Mesh(geoT,tmat(cols[t.t]));m.position.set((t.x-cx)/US,SLAB,(t.y-cy)/US);m.add(outl(geoT,1.1,1.06));root.add(m);V3.tileM[k]=m;
+    if(sym[t.t]){var dd=decal(symTex(sym[t.t],tcol[t.t]),0.62,0.62,m.position.x,RTOP+0.006,m.position.z);root.add(dd);V3.tileD[k]=dd;}
   });
   if(!g.sq){var t0=g.tiles[0];root.add(decal(symTex('START','#17301F',38),1.5,1.5,(t0.x-cx)/US,SLAB+0.01,(t0.y-cy)/US-1.3));}
   else{var t1=g.tiles[0];root.add(decal(symTex('START','#17301F',40),1.4,1.4,(t1.x-cx)/US,RTOP+0.006,(t1.y-cy)/US+0.28));}
@@ -1109,7 +1124,7 @@ function v3Frame(now){
     var bz=0,by=1,bh=0;
     if(P.bump){var u=(now-P.bump)/520;if(u>=1){P.bump=0;}else{busy=true;if(u>0){bz=0.4*Math.sin(u*Math.PI*4)*(1-u);bh=0.22*Math.abs(Math.sin(u*Math.PI*2))*(1-u);by=1-0.12*Math.sin(u*Math.PI*4)*(1-u);}}}
     P.g.rotation.z=bz;P.g.scale.set(0.9,0.9*by,0.9);P.hop+=bh;
-    P.g.position.set(P.cur.x,RTOP+P.hop,P.cur.z);
+    P.g.position.set(P.cur.x,RTOP+P.hop-((V3.arrDy&&S&&i===S.cur)?V3.arrDy:0),P.cur.z);
     var now2=S&&i===S.cur&&S.phase!=='round';P.g.userData.ring.visible=!!now2;
     if(now2){var s=1+0.08*Math.sin(now/220);P.g.userData.ring.scale.set(s,1,s);}
     P.g.userData.sh.scale.setScalar(1-P.hop*0.8);
@@ -1123,6 +1138,34 @@ function v3Frame(now){
   var vi=V3.valid;
   if(V3.dmode==='anim'){if(v3DiceStep(now)){busy=true;}}
   V3.hlm&&V3.hlm.forEach(function(h){var s3=0.5+0.5*Math.sin(now/200),m=V3.cellM[h.idx],dy=m.position.y-SLAB;h.f.material.opacity=0.3+0.55*s3;h.r.material.opacity=0.45+0.55*s3;h.f.position.y=CTOP+0.012+dy;h.r.position.y=CTOP+0.02+dy;});
+  var arrOn=false;
+  if(ARR.k>=0&&V3.tileM&&V3.tileM[ARR.k]){
+    var ag=(performance.now()-ARR.t)/1000,tm=V3.tileM[ARR.k],td=V3.tileD[ARR.k],sy=1;
+    if(ag<1.0){
+      arrOn=true;
+      sy=ag<0.16?1-0.3*(ag/0.16):1-0.3*Math.exp(-(ag-0.16)*6)*Math.cos((ag-0.16)*10);
+      tm.scale.y=sy;if(td){td.position.y=SLAB+(RTOP-SLAB)*sy+0.006;}
+      if(!ARR.gm||ARR.gm.parent!==V3.root){
+        var Tt=V3.T,gg2=geo(),R2=gg2.dr/US-0.02;
+        var shp=gg2.sq?rrShape((TILE-8)/US,(TILE-8)/US,0.18):hexShape(R2-0.05);
+        var gfl=new Tt.ShapeGeometry(shp);gfl.rotateX(-Math.PI/2);
+        var rs=gg2.sq?rrShape((TILE-8)/US+0.12,(TILE-8)/US+0.12,0.2):hexShape(R2+0.07),hl2=gg2.sq?rrShape((TILE-8)/US-0.06,(TILE-8)/US-0.06,0.16):hexShape(R2-0.05);
+        rs.holes.push(hl2);var rg=new Tt.ShapeGeometry(rs);rg.rotateX(-Math.PI/2);
+        ARR.gm=new Tt.Mesh(gfl,new Tt.MeshBasicMaterial({color:0xFFD23F,transparent:true,opacity:0,depthWrite:false}));
+        ARR.rm=new Tt.Mesh(rg,new Tt.MeshBasicMaterial({color:0xFFD23F,transparent:true,opacity:0,depthWrite:false}));
+        ARR.gm.renderOrder=6;ARR.rm.renderOrder=7;V3.root.add(ARR.gm);V3.root.add(ARR.rm);
+      }
+      ARR.gm.position.set(tm.position.x,SLAB+(RTOP-SLAB)*sy+0.016,tm.position.z);
+      ARR.rm.position.set(tm.position.x,SLAB+(RTOP-SLAB)*sy+0.02,tm.position.z);
+      ARR.gm.material.opacity=0.8*Math.max(0,1-ag/0.8);
+      var rsc=1+ag*1.5;ARR.rm.scale.set(rsc,1,rsc);ARR.rm.material.opacity=0.95*Math.max(0,1-ag/0.9);
+      V3.arrDy=(RTOP-SLAB)*(1-sy);
+    }else{
+      tm.scale.y=1;if(td){td.position.y=RTOP+0.006;}
+      if(ARR.gm){V3.root.remove(ARR.gm);V3.root.remove(ARR.rm);ARR.gm=ARR.rm=null;}
+      V3.arrDy=0;ARR.k=-1;
+    }
+  }
   var hs=hitCells();
   V3.cellM.forEach(function(m,idx){
     var on=vi.indexOf(idx)>=0,hh=hs.indexOf(idx)>=0;
@@ -1132,7 +1175,7 @@ function v3Frame(now){
     else if(m.position.y!==SLAB||m.material.emissive.r){m.position.y=SLAB;m.material.emissive.setRGB(0,0,0);}
   });
   V3.r.render(V3.sc,cm);
-  if(busy||V3.spin.length||vi.length||hs.length||!settled||V3.drag){V3.raf=requestAnimationFrame(v3Frame);V3.running=true;}else{V3.running=false;}
+  if(busy||arrOn||V3.spin.length||vi.length||hs.length||!settled||V3.drag){V3.raf=requestAnimationFrame(v3Frame);V3.running=true;}else{V3.running=false;}
 }
 function v3Kick(){if(!V3.live||V3.running){return;}V3.running=true;V3.last=performance.now();V3.raf=requestAnimationFrame(v3Frame);}
 function v3Pick(e){
@@ -1210,7 +1253,7 @@ function viewCtl(){
 window.v3Theme=function(){if(V3.live){V3.theme=null;v3Sync();}};
 
 /* ---- dice inside the 3D scene + blinking build highlights ---- */
-var DSZ=0.62,DY=CTOP+0.31,DARCS=[[0,0.55,2.4],[0.55,0.97,1.1],[0.97,1.32,0.5],[1.32,1.55,0.18]],DT=1.7;
+var DSZ=0.62,DY=RTOP+0.31,DARCS=[[0,0.55,2.4],[0.55,0.97,1.1],[0.97,1.32,0.5],[1.32,1.55,0.18]],DT=1.7;
 function v3DiceBuild(n){
   var T=V3.T;
   if(V3.dg){V3.sc.remove(V3.dg);}
@@ -1246,7 +1289,7 @@ function v3DiceRestPos(n){
   return out;
 }
 function v3DiceSet(vals,rest){
-  V3.dice.forEach(function(d,i){d.p1=rest[i];d.qT=v3Face(vals[i]);d.g.quaternion.copy(d.qT);d.g.position.set(rest[i].x,DY,rest[i].z);d.sh.position.set(rest[i].x,CTOP+0.01,rest[i].z);d.sh.scale.setScalar(0.32);});
+  V3.dice.forEach(function(d,i){d.p1=rest[i];d.qT=v3Face(vals[i]);d.g.quaternion.copy(d.qT);d.g.position.set(rest[i].x,DY,rest[i].z);d.sh.position.set(rest[i].x,RTOP+0.012,rest[i].z);d.sh.scale.setScalar(0.32);});
 }
 function v3DiceShow(vals){
   V3.dv=vals;v3DiceBuild(vals.length);v3DiceSet(vals,v3DiceRestPos(vals.length));V3.dmode='rest';V3.dg.visible=true;
@@ -1261,6 +1304,7 @@ function v3Roll(vals){
   var defer=0;
   if(!glBoardVisible()){var b=document.getElementById('board');if(b){b.scrollIntoView({block:'center',behavior:'smooth'});defer=550;}}
   GLS.delay=Math.round((defer/1000+DT+0.1+(n-1)*0.1)*1000);
+  try{sfxDice(DARCS,n,defer*1);}catch(e){}
   setTimeout(function(){
     if(V3.dv!==vals||V3.dmode!=='wait'){return;}
     V3.dice.forEach(function(d,i){
@@ -1282,12 +1326,12 @@ function v3DiceStep(now){
     var mx=d.p1.x-d.p0.x,mz=d.p1.z-d.p0.z,L=Math.sqrt(mx*mx+mz*mz)||1;
     q=new T.Quaternion().setFromAxisAngle(new T.Vector3(mz/L,0,-mx/L),-(L*(1-m))/(DSZ*0.5)*0.8).multiply(q);
     q.multiply(d.qT);
-    d.g.quaternion.copy(q);d.g.position.set(x,DY+h+lift,z);
-    d.sh.position.set(x,CTOP+0.01,z);d.sh.scale.setScalar(0.32/(1+(h+lift)*0.7));
+    d.g.quaternion.copy(q);d.g.position.set(x,DY+h+lift+0.26*(1-Math.pow(u,8)),z);
+    d.sh.position.set(x,RTOP+0.012,z);d.sh.scale.setScalar(0.32/(1+(h+lift)*0.7));
     d.g.visible=d.sh.visible=tk>-0.01;
     if(tk<DT+0.05){alive=true;}
   });
-  if(!alive){V3.dmode='rest';V3.dice.forEach(function(d){d.g.quaternion.copy(d.qT);d.g.position.set(d.p1.x,DY,d.p1.z);d.sh.position.set(d.p1.x,CTOP+0.01,d.p1.z);d.sh.scale.setScalar(0.32);});}
+  if(!alive){V3.dmode='rest';V3.dice.forEach(function(d){d.g.quaternion.copy(d.qT);d.g.position.set(d.p1.x,DY,d.p1.z);d.sh.position.set(d.p1.x,RTOP+0.012,d.p1.z);d.sh.scale.setScalar(0.32);});}
   return alive;
 }
 function v3Highlights(){
@@ -1433,6 +1477,7 @@ function render(){
   autoEndArm();
   gxReact();
   dfxCheck();
+  try{sfxPawnCheck();}catch(e){}
 }
 
 function landingHtml(){
@@ -1782,6 +1827,7 @@ function glRoll(vals){
   GLS.animating=true;cancelAnimationFrame(GLS.raf);
   GLS.dice.forEach(function(d){d.g.visible=d.sh.visible=false;});if(GLS.cw){GLS.r.render(GLS.sc,GLS.cam);}
   GLS.delay=Math.round((defer/1000+M.T+0.1+(n-1)*0.1)*1000);
+  try{sfxDice(M.arcs,n,defer);}catch(e){}
   setTimeout(go,defer);
   function go(){
     var ph=document.getElementById('dicegl');if(!ph){GLS.animating=false;glDraw();return;}
@@ -1891,6 +1937,7 @@ var mv=null;
 var lt=null;
 function jostle(ci){
   var me=S.players[ci],n=0;
+  try{if(S.players.some(function(q,i){return i!==ci&&q.pos===me.pos;})){sfxBump();}}catch(e){}
   if(V3.live){var c3=0;S.players.forEach(function(q,i){if(q.pos!==me.pos||!V3.pw[i]){return;}if(i!==ci){c3++;}V3.pw[i].bump=performance.now()+(i===ci?0:50*c3);});v3Kick();return c3>0;}
   S.players.forEach(function(q,i){
     if(q.pos!==me.pos){return;}
@@ -2165,6 +2212,108 @@ function sfxSet(on,beep){
 var SND_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></svg>';
 var SND_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>';
 (function(){var b=document.getElementById('sndbtn');if(b){b.addEventListener('click',function(){sfxSet(!SFX.on,true);});sfxSet(SFX.on,false);}})();
+/* arrival effect on the destination tile */
+var ARR={k:-1,t:0,gm:null,rm:null};
+function arrFx(){
+  if(!S||S.target===undefined){return;}
+  ARR.k=S.target;ARR.t=performance.now();
+  var el=document.querySelector('.city g.tile[data-k="'+ARR.k+'"]');
+  if(el){el.style.removeProperty('--ad');el.classList.remove('land');void el.getBoundingClientRect();el.classList.add('land');}
+  if(V3.live){v3Kick();}
+}
+/* dice and pawn sounds */
+function sfxWood(a,t,g,f,dec){
+  /* a hard knock on wood: a bright click plus a short resonant body */
+  dec=dec||0.07;
+  var s=a.createBufferSource();s.buffer=SFX.nb;
+  var fl=a.createBiquadFilter();fl.type='bandpass';fl.frequency.value=Math.min(6500,f*7);fl.Q.value=0.9;
+  var v=a.createGain();v.gain.setValueAtTime(g*0.9,t);v.gain.exponentialRampToValueAtTime(0.0001,t+0.014);
+  s.connect(fl);fl.connect(v);v.connect(SFX.master);s.start(t,Math.random(),0.03);
+  var o=a.createOscillator(),ov=a.createGain();o.type='sine';o.frequency.setValueAtTime(f*1.06,t);o.frequency.exponentialRampToValueAtTime(f,t+0.02);
+  ov.gain.setValueAtTime(g*0.85,t);ov.gain.exponentialRampToValueAtTime(0.0001,t+dec);o.connect(ov);ov.connect(SFX.master);o.start(t);o.stop(t+dec+0.03);
+  var o2=a.createOscillator(),ov2=a.createGain();o2.type='triangle';o2.frequency.value=f*2.65;
+  ov2.gain.setValueAtTime(g*0.3,t);ov2.gain.exponentialRampToValueAtTime(0.0001,t+dec*0.45);o2.connect(ov2);ov2.connect(SFX.master);o2.start(t);o2.stop(t+dec*0.5+0.03);
+}
+function sfxPlastic(a,t,g,f,dec){
+  /* dice: hard, dry, noisy "clack" of a hard die on wood (mostly noise, little tone) */
+  dec=dec||0.04;
+  var s=a.createBufferSource();s.buffer=SFX.nb;
+  var fl=a.createBiquadFilter();fl.type='bandpass';fl.frequency.value=Math.min(7000,f*2.4);fl.Q.value=1.6;
+  var v=a.createGain();v.gain.setValueAtTime(g*3.4,t);v.gain.exponentialRampToValueAtTime(0.0001,t+dec);
+  s.connect(fl);fl.connect(v);v.connect(SFX.master);s.start(t,Math.random(),dec+0.03);
+  var o=a.createOscillator(),ov=a.createGain();o.type='square';o.frequency.value=f*1.7;
+  ov.gain.setValueAtTime(g*0.07,t);ov.gain.exponentialRampToValueAtTime(0.0001,t+0.015);o.connect(ov);ov.connect(SFX.master);o.start(t);o.stop(t+0.03);
+}
+function sfxBlock(a,t,g,f,dec){
+  /* pawns: round, clean, pitched wood-block "tok" (all tone, no noise) */
+  dec=dec||0.07;
+  var o=a.createOscillator(),v=a.createGain();o.type='sine';o.frequency.setValueAtTime(f*1.18,t);o.frequency.exponentialRampToValueAtTime(f,t+0.012);
+  v.gain.setValueAtTime(g,t);v.gain.exponentialRampToValueAtTime(0.0001,t+dec);o.connect(v);v.connect(SFX.master);o.start(t);o.stop(t+dec+0.03);
+  var o2=a.createOscillator(),v2=a.createGain();o2.type='sine';o2.frequency.value=f*2.76;
+  v2.gain.setValueAtTime(g*0.35,t);v2.gain.exponentialRampToValueAtTime(0.0001,t+dec*0.4);o2.connect(v2);v2.connect(SFX.master);o2.start(t);o2.stop(t+dec*0.4+0.03);
+}
+function sfxRoll(a,t,dur,g,f){
+  /* a die rolling over a wooden table: band-limited noise chopped fast, fading out */
+  var s=a.createBufferSource();s.buffer=SFX.nb;s.loop=true;
+  var fl=a.createBiquadFilter();fl.type='bandpass';fl.frequency.setValueAtTime(f,t);fl.frequency.linearRampToValueAtTime(f*0.8,t+dur);fl.Q.value=1.4;
+  var am=a.createGain();am.gain.value=0.5;
+  var lfo=a.createOscillator(),ld=a.createGain();lfo.type='square';lfo.frequency.setValueAtTime(58,t);lfo.frequency.linearRampToValueAtTime(24,t+dur);ld.gain.value=0.5;lfo.connect(ld);ld.connect(am.gain);
+  var env=a.createGain();env.gain.setValueAtTime(0.0001,t);env.gain.linearRampToValueAtTime(g,t+0.012);env.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  s.connect(fl);fl.connect(am);am.connect(env);env.connect(SFX.master);
+  s.start(t);s.stop(t+dur+0.03);lfo.start(t);lfo.stop(t+dur+0.03);
+}
+function sfxDice(arcs,n,deferMs){
+  /* a knock each time a die touches the board (end of each bounce), then it rolls on the wood */
+  if(!SFX.on||!arcs||!arcs.length){return;}
+  var a=sfxCtx();if(!a){return;}
+  var t0=a.currentTime+(deferMs||0)/1000+0.02,hmax=arcs[0][2],d,R=Math.random;
+  for(d=0;d<n;d++){
+    var off=d*0.1,detune=0.92+R()*0.2;
+    arcs.forEach(function(arc,idx){
+      var h=arc[2]/hmax,sh=Math.sqrt(h),g=0.22+0.6*sh,f=(1050+(1-sh)*500)*detune,t=t0+off+arc[1];
+      sfxPlastic(a,t,g,f*1.3,0.035+0.035*sh);
+      if(h>0.1){sfxPlastic(a,t+0.024+R()*0.01,g*0.4,f*1.6,0.025);}
+      sfxRoll(a,t+0.01,0.05+0.12*sh,0.05+0.1*sh,2600);
+    });
+    var last=arcs[arcs.length-1][1];
+    sfxRoll(a,t0+off+last,0.3,0.12,2300);
+    [0.08,0.15,0.22,0.3].forEach(function(x,q){sfxPlastic(a,t0+off+last+x,0.12/(q+1),1700+R()*700,0.02);});
+  }
+}
+function sfxArrive(){
+  /* pawn reaches its tile: a clack, then a short bright wooden "ta-da-ding" */
+  if(!SFX.on){return;}
+  var a=sfxCtx();if(!a){return;}
+  var t=a.currentTime+0.01;
+  sfxBlock(a,t,0.4,820,0.07);
+  [[0.07,1047,0.2,0.35],[0.14,1319,0.2,0.35],[0.21,1760,0.24,0.8]].forEach(function(n){
+    var o=a.createOscillator(),v=a.createGain(),o2=a.createOscillator(),v2=a.createGain(),tt=t+n[0];
+    o.type='sine';o.frequency.value=n[1];v.gain.setValueAtTime(0.0001,tt);v.gain.linearRampToValueAtTime(n[2],tt+0.006);v.gain.exponentialRampToValueAtTime(0.0001,tt+n[3]);
+    o2.type='sine';o2.frequency.value=n[1]*4;v2.gain.setValueAtTime(n[2]*0.35,tt);v2.gain.exponentialRampToValueAtTime(0.0001,tt+0.07);
+    o.connect(v);v.connect(SFX.master);o2.connect(v2);v2.connect(SFX.master);o.start(tt);o.stop(tt+n[3]+0.05);o2.start(tt);o2.stop(tt+0.1);
+  });
+}
+function sfxStep(i){
+  /* pawn on a wooden board: short, high clack */
+  if(!SFX.on){return;}
+  var a=sfxCtx();if(!a){return;}
+  var t=a.currentTime+0.01,f=(760+Math.min(i,10)*22)*(0.97+Math.random()*0.06);
+  sfxBlock(a,t,0.4,f,0.07);
+}
+function sfxBump(){
+  if(!SFX.on){return;}
+  var a=sfxCtx();if(!a){return;}
+  var t=a.currentTime+0.01;sfxBlock(a,t,0.4,700,0.07);sfxBlock(a,t+0.1,0.36,880,0.06);sfxBlock(a,t+0.2,0.3,780,0.06);
+}
+var SFXP={key:''};
+function sfxPawnCheck(){
+  if(screen!=='game'||!S||S.phase!=='moving'||!S.online||NET.role==='host'){SFXP.key='';return;}
+  var k=S.round+':'+S.cur+':'+S.moveLeft;
+  if(SFXP.key===k){return;}
+  var first=SFXP.key==='';SFXP.key=k;
+  if(first||S.moveLeft===S.total){return;}
+  if(S.moveLeft<=0){sfxArrive();setTimeout(arrFx,140);}else{sfxStep(S.total-S.moveLeft);}
+}
 /* full-screen disaster animations */
 var DFX={key:'',tm:[]};
 function dfxKind(t){
@@ -2372,6 +2521,7 @@ function doRoll(){
   stopMove();
   lt=setTimeout(function(){lt=null;mv=setInterval(function(){
     p.pos=(p.pos+1)%len;S.moveLeft--;
+    try{if(S.moveLeft<=0){sfxArrive();setTimeout(arrFx,140);}else{sfxStep(S.total-S.moveLeft);}}catch(e){}
     if(V3.live){v3Sync();}
     S.players.forEach(function(o,j){var e=document.getElementById('pawn'+j);if(e&&j!==S.cur){e.style.transform=pawnT(j);}});
     var pw=document.getElementById('pawn'+S.cur);
