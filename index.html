@@ -166,6 +166,9 @@ input[type=text],select{font:inherit;min-height:44px;padding:8px 12px;border-rad
 .inf small{color:var(--muted);font-size:14px}
 svg.city{width:100%;height:auto;display:block;max-width:680px;margin:0 auto}
 .hexcell{cursor:default}
+.hexcell.hit polygon:nth-of-type(2){animation:hitblink .8s ease-in-out infinite;stroke:#B3261E;stroke-width:5}
+@keyframes hitblink{0%,100%{fill:#FF4A2E}50%{fill:#FFD23F}}
+@media (prefers-reduced-motion:reduce){.hexcell.hit polygon:nth-of-type(2){animation:none;fill:#FF4A2E}}
 .hexcell.valid{cursor:pointer}
 
 :root{--disaster:#3B3F42;--sp-bg:#F4F4D5;--sp-leaf:#006432;--sp-text:#F4F4D5}
@@ -312,6 +315,9 @@ th{background:var(--ink);color:var(--bg)} td.n,th.n{text-align:right;font-varian
 #mas .mbub{position:relative;background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-radius:20px 20px 20px 6px;padding:14px 16px;box-shadow:var(--sh-lift);margin-bottom:46px;min-width:0;flex:1 1 auto}
 #mas .mbub::after{content:"";position:absolute;left:-9px;bottom:14px;width:16px;height:16px;background:var(--surface);border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:rotate(45deg)}
 #mas .mtx{margin:0;font-size:1.05rem;line-height:1.4;font-weight:700}
+#mas .mskip{display:block;margin:10px 0 0 auto;background:none;border:0;padding:4px 6px;font:inherit;font-size:.85rem;font-weight:700;color:var(--muted);text-decoration:underline;cursor:pointer;transition:opacity .3s}
+#mas .mskip.gone{opacity:0;pointer-events:none}
+#mas .mskip:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
 #mas .mbtnw{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s ease}
 #mas .mbtnw.show{grid-template-rows:1fr}
 #mas .mbtnw>div{overflow:hidden;min-height:0}
@@ -731,6 +737,7 @@ function boardSvg(){
     }
   });
   s+='</g><g>';
+  var hitSet=hitCells();
   g.cells.forEach(function(pt,idx){
     var cell=S.cells[idx],cx=pt.x,cy=pt.y,pts=hexPts(cx,cy,g.dr);
     var isV=valid.indexOf(idx)>=0,fill='var(--surface)',stroke='var(--hexline)',sw=2.5,label='',txt='var(--ink)',dash='';
@@ -745,6 +752,7 @@ function boardSvg(){
     }
     if(isV){stroke='var(--btn)';sw=4;dash=' stroke-dasharray="6 4"';desc+=', '+(S.sel==='ruin'?'ruined by the disaster':S.sel==='repair'?'repair here':'build here');}
     var attrs=isV?' class="hexcell valid" tabindex="0" role="button" data-a="cell" data-i="'+idx+'"':' class="hexcell" role="img"';
+    if(hitSet.indexOf(idx)>=0){attrs=attrs.replace('class="hexcell','class="hexcell hit');desc+=', hit by the disaster';}
     s+='<g'+attrs+' aria-label="'+desc+'"><polygon transform="translate(0 4)" points="'+pts+'" fill="var(--edge)" fill-opacity="'+(cell.kind||isV?'1':'.3')+'" stroke="var(--edge)" stroke-opacity="'+(cell.kind||isV?'1':'.3')+'" stroke-width="3" stroke-linejoin="round"/><polygon points="'+pts+'" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+sw+'" stroke-linejoin="round"'+dash+'/>';
     if(label){s+='<text x="'+cx.toFixed(1)+'" y="'+(cy+5).toFixed(1)+'" text-anchor="middle" font-size="'+(g.sq?16:14)+'" font-weight="700" fill="'+txt+'" font-family="Fredoka,Nunito,sans-serif">'+label+'</text>';}
     s+='</g>';
@@ -1006,13 +1014,15 @@ function v3Frame(now){
   var vi=V3.valid;
   if(V3.dmode==='anim'){if(v3DiceStep(now)){busy=true;}}
   V3.hlm&&V3.hlm.forEach(function(h){var s3=0.5+0.5*Math.sin(now/200),m=V3.cellM[h.idx],dy=m.position.y-SLAB;h.f.material.opacity=0.3+0.55*s3;h.r.material.opacity=0.45+0.55*s3;h.f.position.y=CTOP+0.012+dy;h.r.position.y=CTOP+0.02+dy;});
+  var hs=hitCells();
   V3.cellM.forEach(function(m,idx){
-    var on=vi.indexOf(idx)>=0;
-    if(on){var s2=0.5+0.5*Math.sin(now/260);m.position.y=SLAB+0.04+0.1*s2;m.material.emissive.setRGB(0.05+0.15*s2,0.35+0.35*s2,0.15+0.1*s2);}
+    var on=vi.indexOf(idx)>=0,hh=hs.indexOf(idx)>=0;
+    if(hh){var s4=0.5+0.5*Math.sin(now/130);m.material.emissive.setRGB(0.55+0.45*s4,0.1+0.5*s4,0.02);}
+    else if(on){var s2=0.5+0.5*Math.sin(now/260);m.position.y=SLAB+0.04+0.1*s2;m.material.emissive.setRGB(0.05+0.15*s2,0.35+0.35*s2,0.15+0.1*s2);}
     else if(m.position.y!==SLAB||m.material.emissive.r){m.position.y=SLAB;m.material.emissive.setRGB(0,0,0);}
   });
   V3.r.render(V3.sc,cm);
-  if(busy||V3.spin.length||vi.length||!settled||V3.drag){V3.raf=requestAnimationFrame(v3Frame);V3.running=true;}else{V3.running=false;}
+  if(busy||V3.spin.length||vi.length||hs.length||!settled||V3.drag){V3.raf=requestAnimationFrame(v3Frame);V3.running=true;}else{V3.running=false;}
 }
 function v3Kick(){if(!V3.live||V3.running){return;}V3.running=true;V3.last=performance.now();V3.raf=requestAnimationFrame(v3Frame);}
 function v3Pick(e){
@@ -1458,11 +1468,11 @@ function autoHtml(){
       C('<div class="row">'+(a.ok?'<button class="btn" data-a="to-build">Build or repair</button><button class="btn sec" data-a="end-turn">End turn</button>':'<button class="btn" data-a="end-turn">End turn</button>')+'</div>')+(mine?'':'<p class="note" role="status">Waiting for '+esc(p.name)+' to continue…</p>');
   }else if(ph==='event'){
     var ev=S.card;
-    body+='<span class="chip c-disaster">DISASTER AT THE END OF THE ROUND</span><div class="card disaster"><h3>'+esc(ev.t)+'</h3><p>'+esc(ev.x)+'</p><p>'+(ev.area?'Hits the <b>'+esc(ev.area)+'</b> of the city: every infrastructure there is ruined (up to 5).':'Hits one player: <b>'+esc(ev.ty)+'</b>')+'</p><p>'+S.cardFx+'</p></div>'+C('<div class="row"><button class="btn" data-a="ev-ok">'+(S.lost?'See the result':'Continue')+'</button></div>')+(mine?'':'<p class="note" role="status">Waiting for '+esc(p.name)+'…</p>');
+    body+='<span class="chip c-disaster">DISASTER AT THE END OF THE ROUND</span><div class="card disaster"><h3>'+esc(ev.t)+'</h3><p>'+esc(ev.x)+'</p><p>'+(ev.area?'Hits the <b>'+esc(ev.area)+'</b> of the city: every infrastructure there is ruined (up to 5).':'Hits one player: <b>'+esc(ev.ty)+'</b>')+'</p><p>'+S.cardFx+'</p></div>'+(S.hit&&S.hit.length?'<p class="note" role="status">The flashing tiles on the map show where the disaster struck.</p>':'')+C('<div class="row"><button class="btn" data-a="ev-ok">'+(S.lost?'See the result':'Continue')+'</button></div>')+(mine?'':'<p class="note" role="status">Waiting for '+esc(p.name)+'…</p>');
   }else if(ph==='card'){
     var c=S.card;
     if(c.kk==='disaster'){
-      body+=diceHtml()+'<span class="chip c-disaster">DISASTER TILE</span><div class="card disaster"><h3>'+esc(c.t)+'</h3><p>'+esc(c.x)+'</p><p>Type of infrastructure ruined: <b>'+c.ty+'</b></p><p><b>'+S.cardFx+'</b></p></div>'+C('<div class="row"><button class="btn" data-a="end-turn">End turn</button></div>')+'';
+      body+=diceHtml()+'<span class="chip c-disaster">DISASTER TILE</span><div class="card disaster"><h3>'+esc(c.t)+'</h3><p>'+esc(c.x)+'</p><p>Type of infrastructure ruined: <b>'+c.ty+'</b></p><p><b>'+S.cardFx+'</b></p></div>'+(S.hit&&S.hit.length?'<p class="note" role="status">The flashing tile on the map shows what was ruined.</p>':'')+C('<div class="row"><button class="btn" data-a="end-turn">End turn</button></div>')+'';
     }else{
       body+=diceHtml()+'<span class="chip c-'+c.k+'">'+(c.k==='bonus'?'BONUS TILE':'MALUS TILE')+'</span><div class="card '+c.k+'"><h3>'+esc(c.t)+'</h3><p>'+esc(c.x)+'</p><p><b>'+S.cardFx+'</b></p></div>'+C('<div class="row"><button class="btn" data-a="end-turn">End turn</button></div>')+'';
     }
@@ -1745,8 +1755,14 @@ function pickTile(){
   for(i=0;i<w.length;i++){x-=w[i][1];if(x<0){return w[i][0];}}
   return 'light';
 }
+function hitCells(){
+  if(!S||!S.hit||!S.hit.length){return [];}
+  if(S.phase==='event'||(S.phase==='card'&&S.card&&S.card.kk==='disaster')){return S.hit;}
+  return [];
+}
 function ruinCell(idx){
   var c=S.cells[idx],inf=INFRA[c.kind];
+  (S.hit=S.hit||[]).push(idx);
   c.ruined=true;recalc(c.owner);
   if(inf.green&&inf.co2){addCo2(-inf.co2);}
   return 'It ruins your '+inf.name.toLowerCase()+'. Performance −'+inf.perf+'%.'+(inf.green&&inf.co2?' CO₂ +'+(-inf.co2)+'.':'');
@@ -1875,7 +1891,7 @@ function masSay(txt,btns,done){
     B.textContent=txt;
     function fin(){
       A.textContent=txt;B.textContent='';var c=tx.querySelector('.mcur');if(c){c.parentNode.removeChild(c);}
-      if(btns){bw.classList.add('show');masLater(function(){var f=bw.querySelector('button');if(f){f.focus({preventScroll:true});}},450);}
+      if(btns){var sk=document.getElementById('mskip');if(sk){sk.classList.add('gone');}bw.classList.add('show');masLater(function(){var f=bw.querySelector('button');if(f){f.focus({preventScroll:true});}},450);}
       if(done){masLater(done,btns?0:700);}
     }
     if(reduce){fin();return;}
@@ -1900,6 +1916,7 @@ function masKey(e){if(e.key==='Escape'&&MAS.on){e.preventDefault();masAnswer(tru
 function masAnswer(played){
   if(!MAS.on){return;}
   masClr();
+  var sk=document.getElementById('mskip');if(sk){sk.classList.add('gone');}
   if(played){masSay('Great, have fun! Pick a game mode.',false,function(){masLater(function(){masClose();},500);});}
   else{masSay('No problem! Let me show you the rules.',false,function(){masLater(function(){masClose(function(){act('rules',{t:'quick'});});},500);});}
 }
@@ -1933,9 +1950,9 @@ if(!GX.timer){GX.timer=setTimeout(gxLoop,5000);}
 function mascotStart(){
   if(document.getElementById('mas')){return;}
   var o=document.createElement('div');o.id='mas';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.setAttribute('aria-label','Welcome to GreenByte');
-  o.innerHTML='<div class="mbox"><div class="mbub"><p class="mname">Byte, your guide</p><p class="mtx" id="mtx" aria-live="polite"></p><div class="mbtnw" id="mbw"><div><div class="mbtns"><button class="btn" type="button" data-m="y">Yes, I have</button><button class="btn sec" type="button" data-m="n">No, show me the rules</button></div></div></div></div><div class="mchar">'+MAS_SVG+'</div></div>';
+  o.innerHTML='<div class="mbox"><div class="mbub"><p class="mname">Byte, your guide</p><p class="mtx" id="mtx" aria-live="polite"></p><div class="mbtnw" id="mbw"><div><div class="mbtns"><button class="btn" type="button" data-m="y">Yes, I have</button><button class="btn sec" type="button" data-m="n">No, show me the rules</button></div></div></div><button class="mskip" id="mskip" type="button" data-m="skip">Skip</button></div><div class="mchar">'+MAS_SVG+'</div></div>';
   document.body.appendChild(o);MAS.on=true;
-  o.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-m]');if(b){masAnswer(b.getAttribute('data-m')==='y');}});
+  o.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-m]');if(b){var m=b.getAttribute('data-m');masAnswer(m==='y'||m==='skip');}});
   document.addEventListener('keydown',masKey,true);
   MAS.t.push(setTimeout(function(){o.classList.add('on');},120));
   MAS.t.push(setTimeout(function(){GX.busy=false;gxPlay('wave');},1100));
@@ -2032,7 +2049,7 @@ function land(){
   }else if(t==='disaster'){
     var dc=draw('disaster'),cand=[],tn=INFRA[dc.type].name.toLowerCase();
     S.cells.forEach(function(c,ix){if(c.owner===S.cur&&c.kind===dc.type&&!c.ruined){cand.push(ix);}});
-    S.cardHx=-1;S.card={kk:'disaster',t:dc.t,x:dc.x,ty:INFRA[dc.type].name};S.dtype=dc.type;
+    S.hit=[];S.cardHx=-1;S.card={kk:'disaster',t:dc.t,x:dc.x,ty:INFRA[dc.type].name};S.dtype=dc.type;
     if(!cand.length){addCo2(1);S.cardFx='You have no '+tn+' to ruin, so nothing is ruined. CO₂ +1.';S.phase='card';}
     else if(cand.length===1||S.mode==='auto'){S.cardFx=ruinCell(cand[0]);S.phase='card';}
     else{S.cardFx='';S.sel='ruin';S.phase='dpick';}
@@ -2079,13 +2096,15 @@ var AREA_ZONES=[
  {n:'top left',x:130,y:150},{n:'top right',x:310,y:150},{n:'bottom left',x:130,y:310},{n:'bottom right',x:310,y:310},{n:'center',x:220,y:230}
 ];
 function areaDisaster(){
-  var dc=pick(AREA_DIS),z=pick(AREA_ZONES),hit=[],gg=(S.mode==='full')?GEO[S.boardKey]:null,by={},out=[],lst=[];
+  S.hit=[];
+  var dc=pick(AREA_DIS),z=pick(AREA_ZONES),zoneAll=null,hit=[],gg=(S.mode==='full')?GEO[S.boardKey]:null,by={},out=[],lst=[];
   if(gg){
     S.cells.forEach(function(c,ix){
       var g=gg.cells[ix];
       if(g&&INFRA[c.kind]&&!c.ruined&&Math.hypot(g.x-z.x,g.y-z.y)<=60){hit.push({ix:ix,d:Math.hypot(g.x-z.x,g.y-z.y)});}
     });
     hit.sort(function(a,b){return a.d-b.d;});hit=hit.slice(0,5).map(function(h){return h.ix;});
+    zoneAll=[];S.cells.forEach(function(c,ix){var g2=gg.cells[ix];if(g2&&Math.hypot(g2.x-z.x,g2.y-z.y)<=60){zoneAll.push(ix);}});
   }else{
     S.cells.forEach(function(c,ix){if(INFRA[c.kind]&&!c.ruined){lst.push(ix);}});
     hit=shuffle(lst).slice(0,Math.min(3,lst.length));
@@ -2095,6 +2114,7 @@ function areaDisaster(){
     ruinCell(ix);
     (by[o]=by[o]||[]).push(nm);
   });
+  if(zoneAll){S.hit=zoneAll;}
   Object.keys(by).forEach(function(o){out.push('<b>'+esc(S.players[o].name)+':</b> ruins '+by[o].join(', ')+'.');});
   S.card={kk:'turnev',t:dc.t,x:dc.x,area:z.n};
   S.cardFx=out.length?out.join('<br>'):'Nothing is built there, so nothing is ruined.';
@@ -2104,6 +2124,7 @@ function areaDisaster(){
 }
 function turnDisaster(){
   if(Math.random()<0.3){areaDisaster();return;}
+  S.hit=[];
   var dc=draw('tdis'),out=[];
   S.card={kk:'turnev',t:dc.t,x:dc.x,ty:dc.type?INFRA[dc.type].name:'Eco-Coins'};
   var tg=rnd(S.players.length);
@@ -2131,7 +2152,7 @@ function endTurn(){
   advanceTurn();
 }
 function advanceTurn(){
-  S.card=null;
+  S.card=null;S.hit=[];
   if(S.lost){finish();return;}
   S.cur++;
   if(S.cur>=S.players.length){S.cur=0;endRound();return;}
