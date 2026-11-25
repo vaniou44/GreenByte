@@ -1082,6 +1082,36 @@ function topButtons(){
   document.getElementById('topbtns').innerHTML=h;
 }
 function keyOf(el){var d=el.dataset||{};return [d.a,d.i,d.v,d.c,d.r,d.lv,d.idx,d.t,d.m,d.d].join('|');}
+var AE={key:'',t:0,iv:null,done:''};
+function aeOn(){
+  if(screen!=='game'||!S||S.mode!=='full'||S.lost||S.full){return false;}
+  var ph=S.phase;
+  return ph==='rest'||ph==='card'||ph==='done'||(ph==='feedback'&&S.ans&&!S.ans.ok);
+}
+function aeLabel(){
+  var b=app.querySelector('[data-a="end-turn"]');
+  if(!b||!aeOn()){return;}
+  var n=Math.max(0,Math.ceil((AE.t-Date.now())/1000));
+  b.textContent='End turn ('+n+')';
+}
+function aeTick(){
+  if(!aeOn()){autoEndStop();return;}
+  if(Date.now()>=AE.t){
+    var k=AE.key;autoEndStop();
+    if(AE.done===k||NET.role==='guest'){return;}
+    AE.done=k;
+    act('end-turn',{},S.cur);
+    return;
+  }
+  aeLabel();
+}
+function autoEndStop(){if(AE.iv){clearInterval(AE.iv);AE.iv=null;}AE.key='';}
+function autoEndArm(){
+  if(!aeOn()){autoEndStop();return;}
+  var k=S.round+':'+S.cur+':'+S.phase;
+  if(AE.key!==k){AE.key=k;AE.t=Date.now()+5000;if(!AE.iv){AE.iv=setInterval(aeTick,250);}}
+  aeLabel();
+}
 function render(){
   var ae=document.activeElement,key=ae&&ae.dataset&&ae.dataset.a?keyOf(ae):null;
   var rid=ae&&ae.type==='radio'?ae.id:null;
@@ -1108,6 +1138,7 @@ function render(){
   }
   if(!done){var hd=document.getElementById('h');if(hd){hd.focus({preventScroll:true});}}
   if(NET.role==='host'){netSoon();}
+  autoEndArm();
 }
 
 function landingHtml(){
