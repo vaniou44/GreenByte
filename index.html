@@ -76,7 +76,14 @@ p{margin:0;text-wrap:pretty}
 .btn{box-shadow:0 3px 0 rgba(0,0,0,.3)}
 #swarn{position:fixed;inset:0;z-index:9800;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(20,30,24,.55);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
 #swarn .swbox{max-width:440px;background:var(--surface);color:var(--ink);border:2px solid var(--ink);border-radius:20px;padding:24px;text-align:center;box-shadow:var(--sh-lift)}
+#swarn .swbox{position:relative}
+#swarn .swx{position:absolute;top:8px;right:8px;width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:var(--ink);font-size:30px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#swarn .swx:hover{background:rgba(0,0,0,.08)}
+#swarn .swx:focus-visible{outline:3px solid var(--focus);outline-offset:1px}
 #swarn .swbox p{margin:10px 0 18px;line-height:1.45}
+@media (prefers-reduced-motion:no-preference){#swarn{animation:swfade .3s ease-out both}#swarn .swbox{animation:swpop .45s cubic-bezier(.2,.9,.3,1.2) both}#swarn.out{animation:swfade .22s ease-in reverse both}#swarn.out .swbox{animation:swpop .22s ease-in reverse both}}
+@keyframes swfade{from{opacity:0}to{opacity:1}}
+@keyframes swpop{from{opacity:0;transform:translateY(18px) scale(.92)}to{opacity:1;transform:none}}
 #swarn .swico{width:44px;height:44px;margin:0 auto 8px;color:var(--ink)}#swarn .swico svg{width:100%;height:100%}
 .btn.sec{box-shadow:none}
 .btn:hover{filter:brightness(1.07)}
@@ -1963,11 +1970,17 @@ function soundWarn(cb){
   if(SWARNED||!SFX.on||document.getElementById('swarn')){cb();return;}
   SWARNED=true;
   var o=document.createElement('div');o.id='swarn';o.setAttribute('role','alertdialog');o.setAttribute('aria-modal','true');o.setAttribute('aria-labelledby','swt');
-  o.innerHTML='<div class="swbox"><div class="swico" aria-hidden="true">'+SND_ON+'</div><h2 id="swt">Heads up: sound ahead</h2><p>Some sounds in the game (disaster sirens, alarms, impacts) can be loud. If you are wearing headphones, lower your volume first. You can mute the game at any time with the speaker button at the top.</p><div class="row" style="justify-content:center"><button class="btn" id="swok">Got it, start</button><button class="btn sec" id="swmute">Start without sound</button></div></div>';
+  o.innerHTML='<div class="swbox"><button class="swx" id="swx" aria-label="Close and go back to the setup">×</button><div class="swico" aria-hidden="true">'+SND_ON+'</div><h2 id="swt">Heads up: sound ahead</h2><p>Some sounds in the game (disaster sirens, alarms, impacts) can be loud. If you are wearing headphones, lower your volume first. You can mute the game at any time with the speaker button at the top.</p><div class="row" style="justify-content:center"><button class="btn" id="swok">Got it, start</button><button class="btn sec" id="swmute">Start without sound</button></div></div>';
   document.body.appendChild(o);
-  function go(m){if(m){sfxSet(false,false);}o.remove();cb();}
-  document.getElementById('swok').onclick=function(){go(false);};
-  document.getElementById('swmute').onclick=function(){go(true);};
+  function go(m){if(m){sfxSet(false,false);}o.classList.add('out');setTimeout(function(){o.remove();cb();},reduceM()?0:200);}
+  function reduceM(){return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}
+  function closeW(){document.removeEventListener('keydown',esc);SWARNED=false;o.classList.add('out');setTimeout(function(){o.remove();},reduceM()?0:200);}
+  function esc(e){if(e.key==='Escape'){closeW();}}
+  document.addEventListener('keydown',esc);
+  document.getElementById('swx').onclick=closeW;
+  o.addEventListener('click',function(e){if(e.target===o){closeW();}});
+  document.getElementById('swok').onclick=function(){document.removeEventListener('keydown',esc);go(false);};
+  document.getElementById('swmute').onclick=function(){document.removeEventListener('keydown',esc);go(true);};
   document.getElementById('swok').focus();
 }
 function splash(fn){
